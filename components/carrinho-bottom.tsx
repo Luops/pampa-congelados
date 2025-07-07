@@ -152,8 +152,8 @@ export default function CarrinhoBottom() {
               </div>
 
               {/* Lista de Produtos */}
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 max-h-[calc(100vh-220px)]">
+                <div className="space-y-4 overflow-y-auto">
                   {state.itens.map((item) => (
                     <div
                       key={item.id}
