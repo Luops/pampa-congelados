@@ -49,7 +49,7 @@ export default function CarrinhoBottom() {
     },
     {
       threshold: 100,
-      preventDefaultTouchmoveEvent: true,
+      preventDefaultTouchmoveEvent: !isOpen,
     }
   );
 
@@ -152,7 +152,13 @@ export default function CarrinhoBottom() {
               </div>
 
               {/* Lista de Produtos */}
-              <div className="flex-1 overflow-y-auto p-4 max-h-[calc(100vh-220px)]">
+              <div
+                className="flex-1 overflow-y-auto p-4"
+                style={{
+                  maxHeight: "calc(100vh - 220px)",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
                 <div className="space-y-4 overflow-y-auto">
                   {state.itens.map((item) => (
                     <div

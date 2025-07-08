@@ -19,33 +19,29 @@ export default function Home() {
       >
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
+            <div className="flex flex-col items-center md:items-start">
               <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
                 Congelados de <span className="text-blue-600">Qualidade</span>
               </h2>
               <p className="text-xl text-gray-600 mb-8">
-                Salgados artesanais, tortas e pratos prontos congelados. Sabor
-                caseiro com a praticidade que você precisa.
+                Texto chamativo até 100 caracteres.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-                  <a href="#produtos" className="flex items-center">
-                    Ver Produtos
-                  </a>
-                </Button>
-                <Button size="lg" variant="outline">
                   <Phone className="h-4 w-4 mr-2" />
-                  Fazer Pedido
+                  <a href="#produtos" className="flex items-center">
+                    Faça seu pedido
+                  </a>
                 </Button>
               </div>
             </div>
-            <div className="relative">
+            <div className="relative self-center md:self-start">
               <Image
                 src="/placeholder.svg?height=400&width=500"
                 alt="Produtos congelados"
                 width={500}
                 height={400}
-                className="rounded-lg shadow-xl"
+                className="rounded-lg shadow-xl w-full md:w-[500px]"
               />
             </div>
           </div>
