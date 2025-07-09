@@ -1,23 +1,28 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Phone, Snowflake } from "lucide-react"
-import CarrinhoSidebar from "./carrinho-sidebar"
-import MobileMenu from "./mobile-menu"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Phone, Snowflake } from "lucide-react";
+import CarrinhoSidebar from "./carrinho-sidebar";
+import MobileMenu from "./mobile-menu";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Header() {
-  const [isScrolled, setIsScrolled] = useState(false)
+  const { user, loading } = useAuth(); // Pegar o usuário
+  const { logout } = useAuth(); // Fazer logout
+
+  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollTop = window.scrollY
-      setIsScrolled(scrollTop > 10)
-    }
+      const scrollTop = window.scrollY;
+      setIsScrolled(scrollTop > 10);
+    };
 
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <header
@@ -41,7 +46,7 @@ export default function Header() {
           {/* Navegação Desktop - Centro */}
           <nav className="hidden lg:flex space-x-6">
             <a
-              href="#inicio"
+              href="/"
               className="hover:text-blue-200 transition-colors py-2 px-3 rounded-md hover:bg-blue-700/50"
             >
               Início
@@ -71,14 +76,19 @@ export default function Header() {
             {/* Carrinho - Sempre visível */}
             <CarrinhoSidebar />
 
-            {/* Botão de telefone - Apenas Desktop */}
-            <Button variant="secondary" className="hidden lg:flex">
-              <Phone className="h-4 w-4 mr-2" />
-              (13) 99999-9999
-            </Button>
+            {user ? (
+              <div className="hidden lg:flex flex-col items-start justify-start border-l-2 ml-2">
+                <span className="text-xs self-end ml-4">{user.email}</span>
+                <Button onClick={logout} variant="ghost" className="self-end">
+                  <span className="">Sair</span>
+                </Button>
+              </div>
+            ) : (
+              <Link href="/login">Entrar</Link>
+            )}
           </div>
         </div>
       </div>
     </header>
-  )
+  );
 }

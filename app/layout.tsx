@@ -6,6 +6,8 @@ import { CarrinhoProvider } from "@/contexts/carrinho-context";
 import { Toaster } from "@/components/ui/toaster";
 import SwipeTutorial from "@/components/swipe-tutorial";
 import NavBottom from "@/components/nav-bottom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import Header from "@/components/header";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,12 +29,15 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={inter.className}>
-        <CarrinhoProvider>
-          {children}
-          <Toaster />
-          <SwipeTutorial />
-          <NavBottom />
-        </CarrinhoProvider>
+        <AuthProvider>
+          <CarrinhoProvider>
+            <Header />
+            {children}
+            <Toaster />
+            <SwipeTutorial />
+            <NavBottom />
+          </CarrinhoProvider>
+        </AuthProvider>
       </body>
     </html>
   );

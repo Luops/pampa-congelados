@@ -138,7 +138,7 @@ export default function CarrinhoSidebar() {
               <p className="text-gray-500 mb-4">
                 Adicione produtos para começar seu pedido
               </p>
-              <Button onClick={handleClose} variant="outline">
+              <Button onClick={handleClose} variant="outline" className="text-black">
                 Continuar comprando
               </Button>
             </div>
@@ -171,7 +171,7 @@ export default function CarrinhoSidebar() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm leading-tight mb-1">
+                        <h4 className="font-medium text-sm leading-tight mb-1 text-gray-600">
                           {item.nome}
                         </h4>
                         <p className="text-xs text-gray-500 mb-2">
@@ -187,7 +187,7 @@ export default function CarrinhoSidebar() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 hover:bg-red-50 hover:text-red-600"
+                              className="h-6 w-6 hover:bg-red-50 text-red-400 hover:text-red-600"
                               onClick={() =>
                                 atualizarQuantidade(
                                   item.id,
@@ -197,13 +197,13 @@ export default function CarrinhoSidebar() {
                             >
                               <Minus className="h-3 w-3" />
                             </Button>
-                            <span className="w-8 text-center text-sm font-medium">
+                            <span className="w-8 text-center text-sm font-medium text-black">
                               {item.quantidade}
                             </span>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 hover:bg-green-50 hover:text-green-600"
+                              className="h-6 w-6 hover:bg-green-50 text-green-400 hover:text-green-600"
                               onClick={() =>
                                 atualizarQuantidade(
                                   item.id,
@@ -272,7 +272,7 @@ export default function CarrinhoSidebar() {
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      className="flex-1 bg-transparent"
+                      className="flex-1 bg-transparent text-black"
                       onClick={handleClose}
                     >
                       Continuar comprando

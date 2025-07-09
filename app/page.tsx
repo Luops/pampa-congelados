@@ -9,9 +9,6 @@ import Footer from "@/components/footer";
 export default function Home() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Header Sticky */}
-      <Header />
-
       {/* Hero Section - Adicionado padding-top para compensar o header fixo */}
       <section
         id="inicio"
