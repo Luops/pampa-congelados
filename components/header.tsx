@@ -78,7 +78,10 @@ export default function Header() {
 
             {user ? (
               <div className="hidden lg:flex flex-col items-start justify-start border-l-2 ml-2">
-                <span className="text-xs self-end ml-4">{user.email}</span>
+                <div className="w-[200px] text-xs self-end ml-4">
+                  <h3>Ola,</h3>
+                  <span>{user.name}</span>
+                </div>
                 <Button onClick={logout} variant="ghost" className="self-end">
                   <span className="">Sair</span>
                 </Button>

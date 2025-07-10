@@ -4,17 +4,34 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "../../components/ui/button";
-import { EyeOff, Eye, Mail, Lock, User } from "lucide-react";
+import { EyeOff, Eye, Mail, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Components
+import ModalSpinner from "@/components/criar-conta/ModalSpinner";
+
+// Type
+import { User_Model } from "@/models/User";
+
 export default function Register() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [email, setEmail] = useState<User_Model["email"]>("");
+  const [password, setPassword] = useState<User_Model["password"]>("");
+  const [confirmPassword, setConfirmPassword] =
+    useState<User_Model["password"]>("");
+  const [name, setName] = useState<User_Model["name"]>("");
+  const [phone, setPhone] = useState<User_Model["phone"]>("");
+  const [city, setCity] = useState<User_Model["city"]>("");
+  const [neighborhood, setNeighborhood] =
+    useState<User_Model["neighborhood"]>("");
+  const [address, setAddress] = useState<User_Model["address"]>("");
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const [sendingData, setSendingData] = useState(false);
+
   const router = useRouter();
 
   const { register, loading } = useAuth();
@@ -23,9 +40,11 @@ export default function Register() {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
+    setSendingData(true);
 
     if (!email || !password || !confirmPassword) {
       setErrorMsg("Por favor, preencha todos os campos");
+      setSendingData(false);
       return;
     }
 
@@ -33,30 +52,42 @@ export default function Register() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setErrorMsg("Por favor, insira um email válido");
+      setSendingData(false);
       return;
     }
 
     // Validação de senha
     if (password.length < 6) {
       setErrorMsg("A senha deve ter pelo menos 6 caracteres");
+      setSendingData(false);
       return;
     }
 
     if (password !== confirmPassword) {
       setErrorMsg("As senhas não coincidem");
+      setSendingData(false);
       return;
     }
 
-    const result = await register(email, password);
+    const result = await register({
+      email,
+      password,
+      name,
+      phone,
+      city,
+      neighborhood,
+      address,
+      role: 1,
+    });
 
     if (result.success) {
-      setSuccessMsg("Conta criada com sucesso! Redirecionando...");
-      setTimeout(() => {
-        router.push("/");
-      }, 2000);
+      setSuccessMsg(
+        "Conta criada! Verifique seu e-mail para confirmar o cadastro."
+      );
     } else {
       setErrorMsg(result.error || "Erro ao criar conta");
     }
+    setSendingData(false);
   };
 
   return (
@@ -71,6 +102,101 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Campo Nome */}
+          <div className="space-y-2">
+            <label
+              htmlFor="name"
+              className="block text-sm font-semibold text-gray-700"
+            >
+              Nome completo
+            </label>
+            <input
+              id="name"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome"
+              className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors"
+            />
+          </div>
+
+          {/* Campo Telefone */}
+          <div className="space-y-2">
+            <label
+              htmlFor="phone"
+              className="block text-sm font-semibold text-gray-700"
+            >
+              Telefone
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="51989998999"
+              className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors"
+            />
+          </div>
+
+          {/* Campo Cidade */}
+          <div className="space-y-2">
+            <label
+              htmlFor="city"
+              className="block text-sm font-semibold text-gray-700"
+            >
+              Cidade
+            </label>
+            <input
+              id="city"
+              type="text"
+              required
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Ex: Gravataí"
+              className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors"
+            />
+          </div>
+
+          {/* Campo Bairro */}
+          <div className="space-y-2">
+            <label
+              htmlFor="neighborhood"
+              className="block text-sm font-semibold text-gray-700"
+            >
+              Bairro
+            </label>
+            <input
+              id="neighborhood"
+              type="text"
+              required
+              value={neighborhood}
+              onChange={(e) => setNeighborhood(e.target.value)}
+              placeholder="Ex: Centro"
+              className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors"
+            />
+          </div>
+
+          {/* Campo Endereço */}
+          <div className="space-y-2">
+            <label
+              htmlFor="address"
+              className="block text-sm font-semibold text-gray-700"
+            >
+              Endereço
+            </label>
+            <input
+              id="address"
+              type="text"
+              required
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Rua, número, complemento"
+              className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors"
+            />
+          </div>
+
           {/* Campo Email */}
           <div className="space-y-2">
             <label
@@ -182,7 +308,10 @@ export default function Register() {
             className="w-full bg-blue-600 hover:bg-blue-700 font-semibold py-3 transition-colors"
             disabled={loading}
           >
-            {loading ? "Criando conta..." : "Criar Conta"}
+            Registrar
+            {sendingData && (
+              <ModalSpinner message="Enviando dados. Por favor, aguarde..." />
+            )}
           </Button>
         </form>
 
