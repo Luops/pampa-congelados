@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Phone, MapPin, Clock, Star, Truck, Shield } from "lucide-react";
 import Image from "next/image";
 import ProdutosSection from "@/components/produtos-section";
-import Header from "@/components/header";
 import ScrollToTop from "@/components/scroll-to-top";
 import Footer from "@/components/footer";
 

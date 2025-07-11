@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Phone, Snowflake } from "lucide-react";
 import CarrinhoSidebar from "./carrinho-sidebar";
 import MobileMenu from "./mobile-menu";
 import { useAuth } from "../contexts/AuthContext";
