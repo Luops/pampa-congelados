@@ -73,9 +73,7 @@ async function sendVerificationEmail(
   userName: string
 ) {
   try {
-    // Aqui você pode usar um serviço de email como SendGrid, Nodemailer, etc.
-    // Por exemplo, usando a API do Supabase Edge Functions ou uma API externa
-    const verificationLink = `http://localhost:3000/verificar-email?token=${token}`;
+    const verificationLink = `https://pampa-congelados.vercel.app/verificar-email?token=${token}`;
 
     const response = await fetch("/api/send-verification-email", {
       method: "POST",

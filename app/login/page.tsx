@@ -44,7 +44,7 @@ export default function Login() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-10">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
+      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg mt-4">
         {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-blue-600 mb-2">

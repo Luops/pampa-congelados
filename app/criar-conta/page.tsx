@@ -91,7 +91,7 @@ export default function Register() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-10 mt-10">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-10 mt-12">
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
         {/* Header */}
         <div className="mb-8 text-center">
