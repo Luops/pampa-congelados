@@ -5,12 +5,6 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext"; // Ajuste o caminho conforme necessário
 
-interface VerifyEmailContentProps {
-  // Você pode passar o token via props do Server Component se quiser,
-  // mas como você usa searchParams aqui, não é estritamente necessário.
-  // No entanto, é uma boa prática para evitar duplicidade de leitura de searchParams.
-}
-
 export default function VerifyEmailContent() {
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading"
