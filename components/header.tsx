@@ -3,15 +3,35 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import CarrinhoSidebar from "./carrinho-sidebar";
 import MobileMenu from "./mobile-menu";
 import { useAuth } from "../contexts/AuthContext";
+
+import { useRouter } from "next/navigation";
+
+// Icons
+import { CircleUserRound } from "lucide-react";
 
 export default function Header() {
   const { user, loading } = useAuth(); // Pegar o usuário
   const { logout } = useAuth(); // Fazer logout
 
+  const router = useRouter();
+
   const [isScrolled, setIsScrolled] = useState(false);
+
+  const handleViewProfile = () => {
+    // Implement your navigation logic here
+    // e.g., router.push(`/profile/${user?.id}`);
+    console.log("Ver Perfil clicked!");
+    // For now, let's just go to a generic profile page
+    router.push("/profile"); // Assuming you have a /profile route
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -27,7 +47,7 @@ export default function Header() {
     <header
       className={`fixed top-0 left-0 right-0 z-40 bg-blue-600 text-white transition-all duration-300 `}
     >
-      <div className="container mx-auto px-4 py-4">
+      <div className="container mx-auto px-4 py-2">
         <div className="w-full flex items-center justify-center">
           {/* Logo e Menu Mobile - Lado Esquerdo */}
           <div className="w-full flex items-center justify-center gap-3">
@@ -77,16 +97,39 @@ export default function Header() {
 
             {user ? (
               <div className="hidden lg:flex flex-col items-start justify-start border-l-2 ml-2">
-                <div className="w-[200px] text-xs self-end ml-4">
-                  <h3>Ola,</h3>
-                  <span>{user.name}</span>
-                </div>
-                <Button onClick={logout} variant="ghost" className="self-end">
-                  <span className="">Sair</span>
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      className="self-start ml-4 flex items-center justify-end p-1 h-auto bg-transparent hover:bg-blue-700" // Adjust sizing and padding as needed
+                    >
+                      <CircleUserRound className="!h-6 !w-6" />
+                      <span className="truncate text-lg">
+                        {user.name.split(" ")[0]}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-2">
+                    <div className="flex flex-col space-y-1">
+                      <Button
+                        variant="ghost"
+                        className="justify-start px-3 py-2 text-sm"
+                        onClick={handleViewProfile}
+                      >
+                        Ver Perfil
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="justify-start px-3 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={logout}
+                      >
+                        Sair
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             ) : (
-              <Link href="/login">Entrar</Link>
+              <Link href="/login" className="hidden lg:flex">Entrar</Link>
             )}
           </div>
         </div>

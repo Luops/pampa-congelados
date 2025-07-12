@@ -110,14 +110,14 @@ export function DashboardAside() {
       {/* ASIDE */}
       <aside
         className={`
-          fixed top-14 left-0 z-30
+          fixed top-10 left-0 z-30
           h-screen w-64 bg-blue-50 border-r border-blue-300 px-2 py-6 lg:py-14 flex flex-col
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0
         `}
       >
-        <h3 className="text-black">Bem vindo,</h3>
+        <h3 className="text-black">Bem vindo</h3>
         <h3 className="mb-12 text-xs text-black">{user.name}</h3>
 
         <nav className="flex flex-col gap-4 text-sm">

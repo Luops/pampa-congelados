@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Menu,
@@ -9,19 +10,32 @@ import {
   Package,
   Info,
   MessageCircle,
-  Snowflake,
   X,
+  LayoutDashboard,
+  LogIn,
 } from "lucide-react";
 import { useSwipe } from "@/hooks/use-swipe";
+
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function MobileMenu() {
   const [isOpen, setIsOpen] = useState(false);
 
+  const { user, loading } = useAuth();
+
+  const adminRole = Number(process.env.NEXT_PUBLIC_ROLE_ADMIN);
+
   const menuItems = [
-    { href: "#inicio", label: "Início", icon: Home },
-    { href: "#produtos", label: "Produtos", icon: Package },
-    { href: "#sobre", label: "Sobre", icon: Info },
-    { href: "#contato", label: "Contato", icon: MessageCircle },
+    { href: "/", label: "Início", icon: Home, view: "public" },
+    { href: "#produtos", label: "Produtos", icon: Package, view: "public" },
+    { href: "#sobre", label: "Sobre", icon: Info, view: "public" },
+    { href: "#contato", label: "Contato", icon: MessageCircle, view: "public" },
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      view: "private",
+    },
   ];
 
   const handleClose = () => {
@@ -125,10 +139,43 @@ export default function MobileMenu() {
           {/* Navegação */}
           <nav className="flex-1 p-6">
             <div className="space-y-1">
+              {/* Conditional "Entrar" link */}
+              {!user &&
+                !loading && ( // Only show if NOT logged in and loading is complete
+                  <Link
+                    href="/login"
+                    onClick={handleLinkClick}
+                    className="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                  >
+                    <LogIn className="h-5 w-5" /> {/* Use the LogIn icon */}
+                    <span className="font-medium">Entrar</span>
+                  </Link>
+                )}
+
               {menuItems.map((item) => {
                 const Icon = item.icon;
+
+                if (item.view === "private") {
+                  // Only render if user is logged in AND user's role matches adminRole
+                  if (user && !loading && user.role === adminRole) {
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={handleLinkClick}
+                        className="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      >
+                        <Icon className="h-5 w-5" />
+                        <span className="font-medium">{item.label}</span>
+                      </Link>
+                    );
+                  }
+                  return null; // Don't render private items for non-admins
+                }
+
+                // Render public items normally
                 return (
-                  <a
+                  <Link // Using Link from next/link for all menu items for consistency
                     key={item.href}
                     href={item.href}
                     onClick={handleLinkClick}
@@ -136,7 +183,7 @@ export default function MobileMenu() {
                   >
                     <Icon className="h-5 w-5" />
                     <span className="font-medium">{item.label}</span>
-                  </a>
+                  </Link>
                 );
               })}
             </div>
