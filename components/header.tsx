@@ -23,6 +23,8 @@ export default function Header() {
 
   const router = useRouter();
 
+  const adminRole = Number(process.env.NEXT_PUBLIC_ROLE_ADMIN);
+
   const [isScrolled, setIsScrolled] = useState(false);
 
   const handleViewProfile = () => {
@@ -117,6 +119,14 @@ export default function Header() {
                       >
                         Ver Perfil
                       </Button>
+                      <Link
+                        href="/dashboard"
+                        className={`justify-start px-3 py-2 text-sm hover:bg-gray-100 rounded-sm transition-all duration-200 ${
+                          user.role === adminRole ? "" : "hidden"
+                        }`}
+                      >
+                        Dashboard
+                      </Link>
                       <Button
                         variant="ghost"
                         className="justify-start px-3 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -129,7 +139,9 @@ export default function Header() {
                 </Popover>
               </div>
             ) : (
-              <Link href="/login" className="hidden lg:flex">Entrar</Link>
+              <Link href="/login" className="hidden lg:flex">
+                Entrar
+              </Link>
             )}
           </div>
         </div>

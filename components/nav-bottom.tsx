@@ -59,7 +59,7 @@ function NavBottom() {
           <PopoverTrigger asChild>
             <Button
               variant="ghost" // Using ghost variant to make it look like an icon button
-              className="flex flex-col items-center gap-1 text-gray-700 hover:text-blue-600 focus:text-blue-600 p-0 h-auto" // Adjust padding and height for mobile
+              className="flex flex-col items-center gap-1 text-gray-700 hover:text-blue-600 focus:text-blue-600 p-0 h-auto ml-8"
             >
               <CircleUserRound className="h-5 w-5" />{" "}
               {/* Mobile size for icon */}
@@ -95,7 +95,7 @@ function NavBottom() {
         // For non-logged-in user, show a simple "Entrar" link
         <Link
           href="/login"
-          className="flex flex-col items-center gap-1 text-gray-700 hover:text-blue-600 text-xs"
+          className="flex flex-col items-center gap-1 text-gray-700 hover:text-blue-600 text-xs ml-8"
         >
           <CircleUserRound className="h-5 w-5" />
           <span>Entrar</span>

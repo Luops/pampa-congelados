@@ -109,17 +109,17 @@ export default function ProdutoModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-[420px]:w-[100vw] max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[98vw] max-w-4xl max-h-[90vh] flex flex-col items-center overflow-y-auto lg:px-5">
         <DialogHeader>
           <DialogTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-center">
             {produto.nome}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 max-[420px]:w-[85vw]">
+        <div className="space-y-4 w-[88vw] lg:w-full">
           {/* Galeria de Imagens */}
-          <div className="space-y-4 w-full">
-            <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+          <div className="space-y-4 w-full flex flex-col">
+            <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 max-h-[550px]">
               <Image
                 src={imagens[imagemAtual] || "/placeholder.svg"}
                 alt={produto.nome}
@@ -253,7 +253,7 @@ export default function ProdutoModal({
         <Separator className="my-6" />
 
         {/* Tabs com Informações Detalhadas */}
-        <Tabs defaultValue="ingredientes" className="w-[85vw]">
+        <Tabs defaultValue="ingredientes" className="w-full">
           <TabsList className="flex w-full overflow-x-auto whitespace-nowrap no-scrollbar gap-2 px-1 scroll-mx-2">
             <TabsTrigger
               value="ingredientes"

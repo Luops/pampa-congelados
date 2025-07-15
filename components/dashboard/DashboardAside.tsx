@@ -9,7 +9,7 @@ import {
   Home as HomeIcon,
   ChevronRight,
   Upload,
-  Send,
+  FilePlus2
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -45,7 +45,7 @@ export function DashboardAside() {
   // Fecha o aside automaticamente se a tela for redimensionada acima de md
   React.useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 768) {
+      if (window.innerWidth >= 1025) {
         setIsOpen(true);
       } else {
         setIsOpen(false);
@@ -90,7 +90,7 @@ export function DashboardAside() {
       {/* Botão toggle (só em telas < md) */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="md:hidden fixed top-[80px] left-4 z-30 bg-blue-400 p-2 rounded-full shadow hover:bg-blue-500 transition"
+        className="lg:hidden fixed top-[80px] left-4 z-30 bg-blue-400 p-2 rounded-full shadow hover:bg-blue-500 transition"
       >
         <ChevronRight
           className={`w-5 h-5 transition-transform ${
@@ -102,7 +102,7 @@ export function DashboardAside() {
       {/* Overlay em mobile (clicar fora fecha) */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-40 z-20 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-40 z-20 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -114,7 +114,7 @@ export function DashboardAside() {
           h-screen w-64 bg-blue-50 border-r border-blue-300 px-2 py-6 lg:py-14 flex flex-col
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0
+          lg:translate-x-0
         `}
       >
         <h3 className="text-black">Bem vindo</h3>
@@ -123,7 +123,7 @@ export function DashboardAside() {
         <nav className="flex flex-col gap-4 text-sm">
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden fixed top-[50px] right-4 z-30  px-4 py-2 rounded-full hover:bg-blue-200 transition font-bold"
+            className="lg:hidden fixed top-[50px] right-4 z-30  px-4 py-2 rounded-full hover:bg-blue-200 transition font-bold"
           >
             X
           </button>
@@ -134,6 +134,15 @@ export function DashboardAside() {
             <HomeIcon className="h-5 w-5" />
             Dashboard
           </Link>
+
+          <Link
+            href="/dashboard/produto/cadastrar"
+            className="flex items-center gap-3 px-4 py-2 rounded-md text-black/70 hover:bg-blue-200 transition"
+          >
+            <FilePlus2 className="h-5 w-5" />
+            Cadastrar produto
+          </Link>
+
 
           <Link
             href="/dashboard/contatos"
