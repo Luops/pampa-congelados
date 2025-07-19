@@ -39,7 +39,8 @@
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
-    "@supabase/supabase-js": "^2.50.5",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.52.0",
     "@types/bcryptjs": "^3.0.0",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^3.0.2",
@@ -50,13 +51,13 @@
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
-    "next": "15.2.4",
+    "next": "^15.4.2",
     "next-themes": "^0.4.4",
     "nodemailer": "^7.0.5",
     "pg": "^8.16.3",
-    "react": "^19",
+    "react": "^19.1.0",
     "react-day-picker": "8.10.1",
-    "react-dom": "^19",
+    "react-dom": "^19.1.0",
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.0",
@@ -69,14 +70,14 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
-    "@types/node": "^22",
+    "@types/node": "^24.0.15",
     "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.15.4",
-    "@types/react": "^19",
+    "@types/react": "^19.1.8",
     "@types/react-dom": "^19",
     "postcss": "^8.5",
     "supabase": "^2.30.4",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5.8.3"
   }
 }

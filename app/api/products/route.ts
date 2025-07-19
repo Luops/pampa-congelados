@@ -1,67 +1,69 @@
-// Exemplo de como sua rota GET deve ser. Adapte-a se já existir.
 import { NextRequest, NextResponse } from "next/server";
-import { Client } from "pg";
-
-// A URL de conexão do seu banco de dados
-const connectionString = process.env.DATABASE_URL;
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers"; // A função cookies() é importada daqui
 
 export async function GET(req: NextRequest) {
-  // Verifique se a variável de ambiente está definida
-  if (!connectionString) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.json(
-      { error: "A URL de conexão do banco de dados não está configurada." },
+      { error: "As variáveis de ambiente do Supabase não estão configuradas." },
       { status: 500 }
     );
   }
-  const client = new Client({
-    connectionString: connectionString,
+
+  // A função cookies() é chamada aqui. O Next.js gerencia isso internamente.
+  const cookieStore = cookies();
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: any) {
+        cookieStore.set(name, value, options);
+      },
+      remove(name: string, options: any) {
+        cookieStore.delete(name, options);
+      },
+    },
   });
 
   try {
-    await client.connect();
-    // Obtém os parâmetros de URL para paginação e pesquisa
     const searchParams = req.nextUrl.searchParams;
     const limit = Number(searchParams.get("limit")) || 8;
     const offset = Number(searchParams.get("offset")) || 0;
     const searchQuery = searchParams.get("q") || "";
 
-    // Constrói a query SQL dinamicamente
-    let query = `
-      SELECT
-        id,
-        product_name,
-        description,
-        price,
-        promo_price,
-        image_url,
-        stock_quantity,
-        created_at
-      FROM products
-    `;
-
-    const values: string[] = [];
-    let whereClause = "";
+    let query = supabase
+      .from("products")
+      .select(
+        "id, product_name, description, price, promo_price, image_url, stock_quantity, created_at"
+      )
+      .order("created_at", { ascending: false });
 
     if (searchQuery) {
-      whereClause = `WHERE product_name ILIKE $1`;
-      values.push(`%${searchQuery}%`);
+      query = query.ilike("product_name", `%${searchQuery}%`);
     }
 
-    query += `
-      ${whereClause}
-      ORDER BY created_at DESC
-      LIMIT ${limit}
-      OFFSET ${offset};
-    `;
+    query = query.range(offset, offset + limit - 1);
 
-    // Executa a query
-    const { rows } = await client.query(query, values);
+    const { data, error } = await query;
 
-    return NextResponse.json(rows);
+    if (error) {
+      console.error("Erro do Supabase ao buscar produtos:", error);
+      return NextResponse.json(
+        { error: "Falha ao buscar produtos." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Erro ao buscar produtos:", error);
+    console.error("Erro inesperado ao buscar produtos:", error);
     return NextResponse.json(
-      { error: "Falha ao buscar produtos." },
+      { error: "Erro interno do servidor." },
       { status: 500 }
     );
   }
