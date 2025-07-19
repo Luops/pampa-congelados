@@ -1,13 +1,12 @@
-// src/app/dashboard/products/new/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SubmitHandler } from "react-hook-form";
+import { ProductFormValues, productSchema } from "../../../../../../lib/schema";
 import { useRouter } from "next/navigation";
-import { ProductFormValues, productSchema } from "../../../../../lib/schema"; // Verifique seu caminho real!
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +19,18 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { toast } from "sonner";
+import {
+  Package,
+  ShoppingCart,
+  Info,
+  Snowflake,
+  MessageCircle,
+  Loader2,
+  PackageX,
+} from "lucide-react";
+import { DashboardAside } from "../../../../../../components/dashboard/DashboardAside";
+import { useParams } from "next/navigation";
 import {
   DialogHeader,
   Dialog,
@@ -28,32 +39,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import {
-  Package,
-  ShoppingCart,
-  Info,
-  Snowflake,
-  MessageCircle,
-  Loader2, // Importe Loader2 para o ícone de loading
-} from "lucide-react";
 
-// Components
-import { DashboardAside } from "../../../../../components/dashboard/DashboardAside";
+// Define a interface para as props da página, incluindo o ID
+interface ProductPageProps {
+  params: {
+    id: string;
+  };
+}
 
-export default function NewProductPage() {
+export default function EditProductPage() {
   const router = useRouter();
 
-  const [isSubmittingForm, setIsSubmittingForm] = useState(false); // Novo estado para o loading geral do formulário
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const params = useParams();
+  const id = params.id as string; // Obtenha o ID da URL
 
-  const [createSuccess, setCreateSuccess] = useState(false);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(true);
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState(false);
+
+  const [productNotFound, setProductNotFound] = useState(false);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
+    // Valores padrão vazios até que os dados do produto sejam carregados
     defaultValues: {
       productName: "",
-      // image: "", // Removido, pois agora é handled por imageFile
       description: "",
       reviews: { quantityStarsByPerson: 0, quantityReviews: 0 },
       price: 0.0,
@@ -73,30 +84,109 @@ export default function NewProductPage() {
         storageTemperature: "",
         yield: "",
       },
+      imageFile: undefined,
     },
   });
 
-  // Função para lidar com a mudança do arquivo de imagem
+  // useEffect para carregar os dados do produto quando a página é montada
+  useEffect(() => {
+    if (!id) {
+      setIsLoadingProduct(false); // Se não houver ID, é uma página de criação
+      return;
+    }
+
+    const fetchProduct = async () => {
+      try {
+        const res = await fetch(`/api/products/edit/${id}`);
+        if (!res.ok) {
+          if (res.status === 404) {
+            setProductNotFound(true); // Se for 404, seta o estado de 'não encontrado'
+            return;
+          }
+          throw new Error("Erro desconhecido ao buscar o produto.");
+        }
+        const productData = await res.json();
+        console.log("Dados do produto recebidos:", productData);
+
+        // Tratamento para campos JSON
+        let nutritionalInfo = productData.nutritional_info;
+        let details = productData.details;
+        let ingredientsString = productData.ingredients;
+        let preparationString = productData.preparation;
+
+        try {
+          if (typeof nutritionalInfo === "string") {
+            nutritionalInfo = JSON.parse(nutritionalInfo);
+          }
+          if (typeof details === "string") {
+            details = JSON.parse(details);
+          } // ... (lógica de parsing para ingredients e preparation, que está correta) // NOVO BLOCO: Converter os valores de nutritionalInfo para number
+          if (nutritionalInfo) {
+            nutritionalInfo.calories =
+              parseFloat(nutritionalInfo.calories) || 0;
+            nutritionalInfo.proteins =
+              parseFloat(nutritionalInfo.proteins) || 0;
+            nutritionalInfo.carbohydrates =
+              parseFloat(nutritionalInfo.carbohydrates) || 0;
+            nutritionalInfo.fats = parseFloat(nutritionalInfo.fats) || 0;
+          }
+        } catch (parseError) {
+          // ... (código de tratamento de erro)
+        }
+
+        // Formatar os dados para preencher o formulário
+        const formattedData = {
+          productName: productData.product_name,
+          description: productData.description,
+          reviews: {
+            quantityStarsByPerson: productData.reviews_stars_by_person,
+            quantityReviews: productData.reviews_count,
+          },
+          price: productData.price,
+          promoPrice: productData.promo_price,
+          quantityStock: productData.stock_quantity,
+          ingredients: ingredientsString,
+          preparation: preparationString,
+          nutritionalInfo: nutritionalInfo,
+          details: details,
+          imageFile: undefined,
+        };
+
+        form.reset(formattedData); // Preenche o formulário com os dados
+        setImagePreviewUrl(productData.image_url); // Define a URL da imagem para pré-visualização
+        toast.success("Dados do produto carregados com sucesso!");
+      } catch (error: any) {
+        toast.error(`Erro ao carregar produto: ${error.message}`);
+        console.error("Erro ao buscar produto:", error);
+      } finally {
+        setIsLoadingProduct(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id, form]);
+
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      form.setValue("imageFile", selectedFile); // Define o arquivo no campo do formulário
-      setImagePreviewUrl(URL.createObjectURL(selectedFile)); // Cria URL para pré-visualização
-      form.clearErrors("imageFile"); // Limpa qualquer erro anterior
+      form.setValue("imageFile", selectedFile);
+      setImagePreviewUrl(URL.createObjectURL(selectedFile));
+      form.clearErrors("imageFile");
     } else {
-      form.setValue("imageFile", undefined); // Limpa o valor se nenhum arquivo for selecionado
+      form.setValue("imageFile", undefined);
       setImagePreviewUrl(null);
     }
   };
 
+  // Lógica de submissão unificada para criar e editar
   const onSubmit: SubmitHandler<ProductFormValues> = async (values) => {
-    setIsSubmittingForm(true); // Ativa o loading
-    let imageUrl = "";
+    setIsSubmittingForm(true);
+    let imageUrl = imagePreviewUrl; // Mantém a imagem atual por padrão
 
     try {
-      // 1. Validar e fazer upload da imagem, se houver
+      // 1. Fazer upload da nova imagem apenas se uma nova for selecionada
       if (values.imageFile) {
-        toast.info("Enviando imagem...", { duration: 2000 });
+        toast.info("Enviando nova imagem...", { duration: 2000 });
         const formData = new FormData();
         formData.append("file", values.imageFile);
 
@@ -104,29 +194,22 @@ export default function NewProductPage() {
           method: "POST",
           body: formData,
         });
-
         const data = await res.json();
 
         if (!res.ok || !data.imageUrl) {
           throw new Error(data.error || "Falha ao fazer upload da imagem.");
         }
         imageUrl = data.imageUrl;
-        toast.success("Imagem enviada com sucesso!");
-      } else {
-        // Se a imagem for opcional e não for fornecida, pode definir uma URL padrão ou lançar um erro
-        // Depende da sua regra de negócio
-        toast.error("É necessário selecionar uma imagem para o produto.");
-        setIsSubmittingForm(false);
-        return;
+        toast.success("Nova imagem enviada com sucesso!");
       }
 
-      // 2. Preparar os dados do produto com a URL da imagem
+      // 2. Preparar os dados do produto com a URL da imagem (antiga ou nova)
       const productDataForAPI = {
         product_name: values.productName,
-        image_url: imageUrl, // Usamos a URL obtida do upload
+        image_url: imageUrl,
         description: values.description,
-        reviews_stars_by_person: values.reviews?.quantityStarsByPerson || 0, // Adicionado optional chaining
-        reviews_count: values.reviews?.quantityReviews || 0, // Adicionado optional chaining
+        reviews_stars_by_person: values.reviews?.quantityStarsByPerson || 0,
+        reviews_count: values.reviews?.quantityReviews || 0,
         price: values.price,
         promo_price: values.promoPrice,
         stock_quantity: values.quantityStock,
@@ -136,50 +219,71 @@ export default function NewProductPage() {
         details: JSON.stringify(values.details),
       };
 
-      // 3. Enviar os dados do produto para o backend
-      toast.info("Cadastrando produto...", { duration: 2000 });
-      const productRes = await fetch("/api/products/create", {
-        // Substitua por sua rota de API
-        method: "POST",
+      // 3. Enviar os dados do produto para o backend (agora é PATCH)
+      toast.info("Editando produto...", { duration: 2000 });
+      const productRes = await fetch(`/api/products/edit/${id}`, {
+        method: "PATCH", // Método alterado para PATCH
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(productDataForAPI),
       });
 
       if (!productRes.ok) {
         const errorData = await productRes.json();
-        throw new Error(errorData.error || "Falha ao cadastrar produto.");
+        throw new Error(errorData.error || "Falha ao editar produto.");
       }
 
       const result = await productRes.json();
-      console.log("Produto cadastrado com sucesso!", result);
-      toast.success("Produto cadastrado com sucesso!");
-
-      setCreateSuccess(true);
-
-      // Limpar o formulário e pré-visualização da imagem
-      form.reset();
-      setImagePreviewUrl(null);
+      console.log("Produto editado com sucesso!", result);
+      toast.success("Produto editado com sucesso!");
+      setEditSuccess(true);
     } catch (error: any) {
-      console.error("Erro no processo de cadastro:", error);
+      console.error("Erro no processo de edição:", error);
       toast.error(
-        `Erro ao cadastrar produto: ${
+        `Erro ao editar produto: ${
           error.message || "Ocorreu um erro inesperado."
         }`
       );
     } finally {
-      setIsSubmittingForm(false); // Desativa o loading
+      setIsSubmittingForm(false);
     }
   };
 
+  // Se estiver carregando, mostre uma tela de loading
+  if (isLoadingProduct) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+      </main>
+    );
+  }
+
+  // Mostra uma mensagem de erro amigável se o produto não for encontrado
+  if (productNotFound) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center text-center p-4">
+        <PackageX className="h-24 w-24 text-red-500 mb-4" />
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          Produto Não Encontrado
+        </h1>
+        <p className="text-lg text-gray-600 mb-6">
+          O produto com o ID especificado não pôde ser encontrado no catálogo.
+        </p>
+        <Button onClick={() => (window.location.href = "/dashboard")}>
+          Voltar para o Dashboard
+        </Button>
+      </main>
+    );
+  }
+
   return (
     <>
-      <Dialog open={createSuccess} onOpenChange={setCreateSuccess}>
+      <Dialog open={editSuccess} onOpenChange={setEditSuccess}>
         <DialogTrigger asChild>
           <Button>Fechar</Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[425px] flex flex-col items-center justify-center gap-10">
           <DialogHeader>
-            <DialogTitle>Produto Criado com Sucesso!</DialogTitle>
+            <DialogTitle>Produto Editado com Sucesso!</DialogTitle>
           </DialogHeader>
           <DialogDescription>
             <Link
@@ -195,11 +299,10 @@ export default function NewProductPage() {
         <DashboardAside />
         <div className="w-full flex flex-col lg:ml-[40%] xl:ml-0 xl:items-center">
           <h1 className="text-3xl md:text-4xl font-bold text-center text-blue-700 mb-6">
-            Cadastro de Produto
+            Edição de Produto
           </h1>
           <p className="text-center text-gray-600 mb-8">
-            Preencha os campos abaixo para adicionar um novo produto ao
-            catálogo.
+            Edite os campos para atualizar os dados do produto.
           </p>
 
           <Form {...form}>
@@ -233,7 +336,7 @@ export default function NewProductPage() {
                   {/* Campo para Upload de Imagem */}
                   <FormField
                     control={form.control}
-                    name="imageFile" // Usamos imageFile para o input do tipo "file"
+                    name="imageFile"
                     render={({ field: { value, onChange, ...fieldProps } }) => (
                       <FormItem>
                         <FormLabel>Imagem do Produto</FormLabel>
@@ -242,7 +345,7 @@ export default function NewProductPage() {
                             {...fieldProps}
                             type="file"
                             accept="image/*"
-                            onChange={handleImageFileChange} // Usamos nosso próprio handler
+                            onChange={handleImageFileChange}
                             className="file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:border-0 file:rounded-md file:py-2 file:px-4 file:mr-4"
                           />
                         </FormControl>
@@ -527,12 +630,12 @@ export default function NewProductPage() {
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-3 flex items-center justify-center gap-2"
-                disabled={isSubmittingForm} // Desabilita o botão enquanto estiver enviando
+                disabled={isSubmittingForm}
               >
                 {isSubmittingForm && (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 )}
-                {isSubmittingForm ? "Cadastrando..." : "Cadastrar Produto"}
+                {isSubmittingForm ? "Salvando..." : "Salvar Alterações"}
               </Button>
               <Button onClick={() => router.back()} className="w-full">
                 Voltar

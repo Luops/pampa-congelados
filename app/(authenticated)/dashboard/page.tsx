@@ -9,7 +9,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 
 // Components
 import { DashboardAside } from "../../../components/dashboard/DashboardAside";
-import ImageGallery from "../../../components/dashboard/ImageGallery"; // Correct path if it's outside 'app'
+import ProductList from "@/components/dashboard/ProductList";
 
 function Dashboard() {
   const [refreshFlag, setRefreshFlag] = React.useState(false);
@@ -47,8 +47,9 @@ function Dashboard() {
 
   return (
     <main className="flex min-h-screen">
-      <div className="flex-grow md">
+      <div className="flex-grow">
         <DashboardAside />
+        <ProductList/>
       </div>
     </main>
   );

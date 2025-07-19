@@ -1,113 +1,79 @@
-// lib/schema.ts
 import { z } from "zod";
 
-export const productSchema = z
-  .object({
-    productName: z
-      .string()
-      .min(3, "Nome do produto deve ter no mínimo 3 caracteres."),
-    imageFile:
-      typeof window === "undefined"
-        ? z.any().optional()
-        : z.instanceof(File).optional(),
+// A interface Product será inferida do seu schema Zod,
+// mas para o seu componente, precisamos de campos do banco de dados também.
+// Adapte este esquema para refletir as colunas da sua tabela 'products'.
 
-    description: z
-      .string()
-      .min(10, "Descrição deve ter no mínimo 10 caracteres."),
+export const productSchema = z.object({
+  productName: z.string().min(1, "O nome do produto é obrigatório."),
+  description: z
+    .string()
+    .min(1, "A descrição é obrigatória.")
+    .max(500, "A descrição deve ter no máximo 500 caracteres."),
+  reviews: z
+    .object({
+      quantityStarsByPerson: z.coerce.number().min(0).max(5).default(0),
+      quantityReviews: z.coerce.number().min(0).default(0),
+    })
+    .optional(),
+  price: z.coerce.number().min(0.01, "O preço deve ser maior que zero."),
+  promoPrice: z.coerce.number().min(0).optional(),
+  quantityStock: z.coerce
+    .number()
+    .min(0, "A quantidade não pode ser negativa."),
+  ingredients: z.string().min(1, "Os ingredientes são obrigatórios."),
+  preparation: z.string().min(1, "O modo de preparo é obrigatório."),
+  nutritionalInfo: z
+    .object({
+      calories: z.coerce
+        .number()
+        .min(0, "Calorias não pode ser negativa.")
+        .default(0),
+      proteins: z.coerce
+        .number()
+        .min(0, "Proteínas não pode ser negativa.")
+        .default(0),
+      carbohydrates: z.coerce
+        .number()
+        .min(0, "Carboidratos não pode ser negativa.")
+        .default(0),
+      fats: z.coerce
+        .number()
+        .min(0, "Gorduras não pode ser negativa.")
+        .default(0),
+    })
+    .optional(),
+  details: z
+    .object({
+      weight: z.string().optional(),
+      validity: z.string().optional(),
+      storageTemperature: z.string().optional(),
+      yield: z.string().optional(),
+    })
+    .optional(),
+  imageFile: z.any().optional(), // File type is handled separately
+});
 
-    reviews: z
-      .object({
-        quantityStarsByPerson: z.number().min(0).max(5).default(0),
-        quantityReviews: z.number().min(0).default(0),
-      })
-      .default({ quantityStarsByPerson: 0, quantityReviews: 0 }),
-
-    // PRIMEIRO: Garanta que 'price' seja um número válido ou um fallback seguro.
-    price: z.preprocess((val) => {
-      // Tenta converter para número, se falhar, retorna NaN para a validação subsequente pegar.
-      const num = Number(val);
-      return isNaN(num) ? undefined : num; // Retorna undefined para que a próxima validação de 'number' falhe
-    }, z.number().min(0.01, "Preço deve ser maior que zero.")),
-
-    promoPrice: z.preprocess(
-      (val) => {
-        // Lida com string vazia ou undefined/null convertendo para undefined
-        if (val === "" || val === null || val === undefined) {
-          return undefined;
-        }
-        const num = Number(val);
-        return isNaN(num) ? undefined : num;
-      },
-      z.number().min(0).optional().nullable() // Opcional e pode ser nulo
-    ),
-
-    quantityStock: z.preprocess(
-      (val) => Number(val),
-      z.number().int().min(0, "Estoque deve ser um número inteiro positivo.")
-    ),
-    ingredients: z
-      .string()
-      .min(1, "Ingredientes são obrigatórios.")
-      .transform((s) =>
-        s
-          .split(";")
-          .map((item) => item.trim())
-          .filter((item) => item.length > 0)
-      ),
-    preparation: z
-      .string()
-      .min(1, "Modo de preparo é obrigatório.")
-      .transform((s) =>
-        s
-          .split(";")
-          .map((item) => item.trim())
-          .filter((item) => item.length > 0)
-      ),
-
-    nutritionalInfo: z.object({
-      calories: z.preprocess(
-        (val) => Number(val),
-        z.number().min(0, "Calorias devem ser >= 0.")
-      ),
-      proteins: z.preprocess(
-        (val) => Number(val),
-        z.number().min(0, "Proteínas devem ser >= 0.")
-      ),
-      carbohydrates: z.preprocess(
-        (val) => Number(val),
-        z.number().min(0, "Carboidratos devem ser >= 0.")
-      ),
-      fats: z.preprocess(
-        (val) => Number(val),
-        z.number().min(0, "Gorduras devem ser >= 0.")
-      ),
-    }),
-
-    details: z.object({
-      weight: z.string().min(1, "Peso é obrigatório."),
-      validity: z.string().min(1, "Validade é obrigatória."),
-      storageTemperature: z
-        .string()
-        .min(1, "Temperatura de armazenamento é obrigatória."),
-      yield: z.string().min(1, "Rendimento é obrigatório."),
-    }),
-  })
-  .superRefine((data, ctx) => {
-    // Use superRefine para validações que dependem de múltiplos campos
-    // Agora você pode ter certeza que data.price foi preprocessado
-    if (
-      data.promoPrice !== undefined &&
-      data.promoPrice !== null &&
-      data.price !== undefined
-    ) {
-      if (data.promoPrice >= data.price) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Preço promocional deve ser menor que o preço normal.",
-          path: ["promoPrice"], // Associa o erro ao campo promoPrice
-        });
-      }
-    }
-  });
-
+// Tipos para os campos complexos
+export type NutritionalInfo = z.infer<typeof productSchema>;
+export type Details = z.infer<typeof productSchema.shape.details>;
 export type ProductFormValues = z.infer<typeof productSchema>;
+
+// O tipo 'Product' que será usado nos componentes
+// Ele inclui os campos do banco de dados que não estão no formulário
+export type Product = {
+  id: string; // O ID vem do banco de dados
+  product_name: string;
+  description: string;
+  reviews_stars_by_person: number | null;
+  reviews_count: number | null;
+  price: number;
+  promo_price: number | null;
+  stock_quantity: number;
+  ingredients: string;
+  preparation: string;
+  nutritional_info: any; // Use 'any' por enquanto, ou defina um tipo mais específico se necessário
+  details: any; // Use 'any' por enquanto
+  image_url: string | null;
+  created_at: string;
+};

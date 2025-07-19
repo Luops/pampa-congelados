@@ -73,7 +73,7 @@ async function sendVerificationEmail(
   userName: string
 ) {
   try {
-    const verificationLink = `https://pampa-congelados.vercel.app/verificar-email?token=${token}`;
+    const verificationLink = `http://localhost:3000/verificar-email?token=${token}`;
 
     const response = await fetch("/api/send-verification-email", {
       method: "POST",
