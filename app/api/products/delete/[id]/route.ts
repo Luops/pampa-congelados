@@ -1,8 +1,28 @@
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { Client } from "pg";
 
-// A URL de conexão do seu banco de dados
-const connectionString = process.env.DATABASE_URL;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Chamada dentro de cada rota (GET, PATCH, etc.)
+function getSupabaseClient() {
+  const cookieStore = cookies(); // Chama cookies() dentro de uma função para garantir o contexto da requisição
+
+  return createServerClient(supabaseUrl!, supabaseAnonKey!, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: any) {
+        cookieStore.set(name, value, options);
+      },
+      remove(name: string, options: any) {
+        cookieStore.delete(name, options);
+      },
+    },
+  });
+}
 
 // Rota para deletar um produto pelo ID
 export async function DELETE(
@@ -11,33 +31,35 @@ export async function DELETE(
 ) {
   const { id } = params;
 
-  const client = new Client({
-    connectionString: connectionString,
-  });
+  if (!id) {
+    return NextResponse.json(
+      { error: "ID do produto não fornecido para atualização." },
+      { status: 400 }
+    );
+  }
 
+  // Crie uma nova instância do cliente Supabase para esta requisição
+  const supabase = getSupabaseClient();
   try {
-    await client.connect();
+    // Consulta SQL para buscar o produto. Use $1 para evitar SQL Injection.
+    const { data: error, count } = await supabase
+      .from("products")
+      .delete({ count: "exact" }) // Adiciona { count: 'exact' } para obter a contagem de linhas afetadas
+      .eq("id", id); // Filtra pelo ID
 
-    // Verifica se o ID é válido
-    if (!id || isNaN(Number(id))) {
+    if (error) {
+      console.error("Erro do Supabase ao deletar produto:", error);
       return NextResponse.json(
-        { error: "ID de produto inválido." },
-        { status: 400 }
+        { error: "Falha ao deletar o produto." },
+        { status: 500 }
       );
     }
 
- // Consulta SQL para buscar o produto. Use $1 para evitar SQL Injection.
-    const query = "DELETE FROM products WHERE id = $1";
-    const values = [id];
-
-
-    // Executa a query SQL para deletar o produto
-    const result = await client.query(query, values);
-
-    // Verifica se alguma linha foi afetada (produto foi deletado)
-    if (result.rowCount === 0) {
+    // Se count for 0, significa que nenhum produto com esse ID foi encontrado e deletado.
+    if (count === 0) {
+      console.log("Produto não encontrado para exclusão.");
       return NextResponse.json(
-        { error: "Produto não encontrado." },
+        { error: "Produto não encontrado para exclusão." },
         { status: 404 }
       );
     }
