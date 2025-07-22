@@ -1,47 +1,48 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useMemo } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Search, X, Minus, Plus } from "lucide-react"
-import Image from "next/image"
-import ProdutoModal from "./produto-modal"
-import { useCarrinho } from "@/contexts/carrinho-context"
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Search, X, Minus, Plus } from "lucide-react";
+import Image from "next/image";
+import ProdutoModal from "./produto-modal";
+import { useCarrinho } from "@/contexts/carrinho-context";
 
 interface Produto {
-  id: number
-  nome: string
-  descricao: string
-  preco: string
-  categoria: string
-  imagem: string
-  imagens?: string[]
-  ingredientes: string[]
+  id: number;
+  nome: string;
+  descricao: string;
+  preco: string;
+  categoria: string;
+  imagem: string;
+  imagens?: string[];
+  ingredientes: string[];
   informacoesNutricionais: {
-    calorias: string
-    proteinas: string
-    carboidratos: string
-    gorduras: string
-  }
-  modoPreparo: string[]
-  tempoPreparo: string
-  porcoes: string
-  temperatura: string
-  validade: string
-  peso: string
-  avaliacao: number
-  totalAvaliacoes: number
+    calorias: string;
+    proteinas: string;
+    carboidratos: string;
+    gorduras: string;
+  };
+  modoPreparo: string[];
+  tempoPreparo: string;
+  porcoes: string;
+  temperatura: string;
+  validade: string;
+  peso: string;
+  avaliacao: number;
+  totalAvaliacoes: number;
 }
 
 const produtos: Produto[] = [
   {
     id: 1,
     nome: "Coxinha de Frango",
-    descricao: "Coxinha tradicional com recheio cremoso de frango desfiado e temperos especiais",
+    descricao:
+      "Coxinha tradicional com recheio cremoso de frango desfiado e temperos especiais",
     preco: "R$ 2,50",
     categoria: "Salgados",
     imagem: "/placeholder.svg?height=200&width=200",
@@ -50,7 +51,15 @@ const produtos: Produto[] = [
       "/placeholder.svg?height=400&width=400",
       "/placeholder.svg?height=400&width=400",
     ],
-    ingredientes: ["Farinha de trigo", "Frango desfiado", "Cebola", "Alho", "Temperos naturais", "Óleo vegetal", "Sal"],
+    ingredientes: [
+      "Farinha de trigo",
+      "Frango desfiado",
+      "Cebola",
+      "Alho",
+      "Temperos naturais",
+      "Óleo vegetal",
+      "Sal",
+    ],
     informacoesNutricionais: {
       calorias: "180 kcal",
       proteinas: "12g",
@@ -79,7 +88,14 @@ const produtos: Produto[] = [
     preco: "R$ 3,00",
     categoria: "Salgados",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Farinha de trigo", "Queijo mussarela", "Ovos", "Óleo vegetal", "Sal", "Fermento"],
+    ingredientes: [
+      "Farinha de trigo",
+      "Queijo mussarela",
+      "Ovos",
+      "Óleo vegetal",
+      "Sal",
+      "Fermento",
+    ],
     informacoesNutricionais: {
       calorias: "220 kcal",
       proteinas: "10g",
@@ -108,14 +124,27 @@ const produtos: Produto[] = [
     preco: "R$ 4,00",
     categoria: "Salgados",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Farinha de trigo", "Palmito", "Ovos", "Cebola", "Azeitonas", "Requeijão", "Sal"],
+    ingredientes: [
+      "Farinha de trigo",
+      "Palmito",
+      "Ovos",
+      "Cebola",
+      "Azeitonas",
+      "Requeijão",
+      "Sal",
+    ],
     informacoesNutricionais: {
       calorias: "250 kcal",
       proteinas: "8g",
       carboidratos: "20g",
       gorduras: "15g",
     },
-    modoPreparo: ["Retire do freezer", "Aqueça o forno a 180°C", "Asse por 20-25 minutos", "Sirva quente"],
+    modoPreparo: [
+      "Retire do freezer",
+      "Aqueça o forno a 180°C",
+      "Asse por 20-25 minutos",
+      "Sirva quente",
+    ],
     tempoPreparo: "25 min",
     porcoes: "1 unidade",
     temperatura: "-18°C",
@@ -131,14 +160,27 @@ const produtos: Produto[] = [
     preco: "R$ 3,50",
     categoria: "Salgados",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Trigo para quibe", "Carne moída", "Cebola", "Hortelã", "Especiarias árabes", "Azeite", "Sal"],
+    ingredientes: [
+      "Trigo para quibe",
+      "Carne moída",
+      "Cebola",
+      "Hortelã",
+      "Especiarias árabes",
+      "Azeite",
+      "Sal",
+    ],
     informacoesNutricionais: {
       calorias: "200 kcal",
       proteinas: "15g",
       carboidratos: "10g",
       gorduras: "10g",
     },
-    modoPreparo: ["Retire do freezer", "Aqueça o forno a 180°C", "Asse por 30-35 minutos", "Sirva com limão"],
+    modoPreparo: [
+      "Retire do freezer",
+      "Aqueça o forno a 180°C",
+      "Asse por 30-35 minutos",
+      "Sirva com limão",
+    ],
     tempoPreparo: "35 min",
     porcoes: "1 unidade",
     temperatura: "-18°C",
@@ -154,14 +196,27 @@ const produtos: Produto[] = [
     preco: "R$ 8,00",
     categoria: "Tortas",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Farinha de trigo", "Frango desfiado", "Catupiry", "Ovos", "Cebola", "Azeitonas", "Sal"],
+    ingredientes: [
+      "Farinha de trigo",
+      "Frango desfiado",
+      "Catupiry",
+      "Ovos",
+      "Cebola",
+      "Azeitonas",
+      "Sal",
+    ],
     informacoesNutricionais: {
       calorias: "350 kcal",
       proteinas: "20g",
       carboidratos: "25g",
       gorduras: "20g",
     },
-    modoPreparo: ["Retire do freezer", "Aqueça o forno a 180°C", "Asse por 25-30 minutos", "Sirva quente"],
+    modoPreparo: [
+      "Retire do freezer",
+      "Aqueça o forno a 180°C",
+      "Asse por 25-30 minutos",
+      "Sirva quente",
+    ],
     tempoPreparo: "30 min",
     porcoes: "1 unidade",
     temperatura: "-18°C",
@@ -192,7 +247,12 @@ const produtos: Produto[] = [
       carboidratos: "35g",
       gorduras: "25g",
     },
-    modoPreparo: ["Retire do freezer", "Aqueça o forno a 180°C", "Asse por 40-45 minutos", "Sirva quente"],
+    modoPreparo: [
+      "Retire do freezer",
+      "Aqueça o forno a 180°C",
+      "Asse por 40-45 minutos",
+      "Sirva quente",
+    ],
     tempoPreparo: "45 min",
     porcoes: "4 pessoas",
     temperatura: "-18°C",
@@ -208,14 +268,27 @@ const produtos: Produto[] = [
     preco: "R$ 4,50",
     categoria: "Salgados",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Farinha de trigo", "Camarão", "Cebola", "Alho", "Salsa", "Requeijão", "Sal"],
+    ingredientes: [
+      "Farinha de trigo",
+      "Camarão",
+      "Cebola",
+      "Alho",
+      "Salsa",
+      "Requeijão",
+      "Sal",
+    ],
     informacoesNutricionais: {
       calorias: "230 kcal",
       proteinas: "14g",
       carboidratos: "16g",
       gorduras: "12g",
     },
-    modoPreparo: ["Retire do freezer", "Aqueça o óleo a 180°C", "Frite por 3-4 minutos", "Sirva quente"],
+    modoPreparo: [
+      "Retire do freezer",
+      "Aqueça o óleo a 180°C",
+      "Frite por 3-4 minutos",
+      "Sirva quente",
+    ],
     tempoPreparo: "4 min",
     porcoes: "1 unidade",
     temperatura: "-18°C",
@@ -231,14 +304,27 @@ const produtos: Produto[] = [
     preco: "R$ 12,00",
     categoria: "Tortas",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Farinha de trigo", "Palmito", "Azeitonas", "Ovos", "Cebola", "Requeijão", "Sal"],
+    ingredientes: [
+      "Farinha de trigo",
+      "Palmito",
+      "Azeitonas",
+      "Ovos",
+      "Cebola",
+      "Requeijão",
+      "Sal",
+    ],
     informacoesNutricionais: {
       calorias: "400 kcal",
       proteinas: "18g",
       carboidratos: "30g",
       gorduras: "22g",
     },
-    modoPreparo: ["Retire do freezer", "Aqueça o forno a 180°C", "Asse por 30-35 minutos", "Sirva quente"],
+    modoPreparo: [
+      "Retire do freezer",
+      "Aqueça o forno a 180°C",
+      "Asse por 30-35 minutos",
+      "Sirva quente",
+    ],
     tempoPreparo: "35 min",
     porcoes: "2 pessoas",
     temperatura: "-18°C",
@@ -254,14 +340,26 @@ const produtos: Produto[] = [
     preco: "R$ 22,00",
     categoria: "Pratos Prontos",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Carne", "Champignon", "Creme de leite", "Cebola", "Mostarda", "Ketchup", "Arroz"],
+    ingredientes: [
+      "Carne",
+      "Champignon",
+      "Creme de leite",
+      "Cebola",
+      "Mostarda",
+      "Ketchup",
+      "Arroz",
+    ],
     informacoesNutricionais: {
       calorias: "500 kcal",
       proteinas: "35g",
       carboidratos: "40g",
       gorduras: "25g",
     },
-    modoPreparo: ["Retire do freezer", "Aqueça em fogo baixo", "Sirva com arroz"],
+    modoPreparo: [
+      "Retire do freezer",
+      "Aqueça em fogo baixo",
+      "Sirva com arroz",
+    ],
     tempoPreparo: "20 min",
     porcoes: "3 pessoas",
     temperatura: "-18°C",
@@ -277,7 +375,13 @@ const produtos: Produto[] = [
     preco: "R$ 2,00",
     categoria: "Doces",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Leite condensado", "Chocolate em pó", "Manteiga", "Chocolate granulado", "Sabores variados"],
+    ingredientes: [
+      "Leite condensado",
+      "Chocolate em pó",
+      "Manteiga",
+      "Chocolate granulado",
+      "Sabores variados",
+    ],
     informacoesNutricionais: {
       calorias: "120 kcal",
       proteinas: "2g",
@@ -300,7 +404,15 @@ const produtos: Produto[] = [
     preco: "R$ 18,00",
     categoria: "Doces",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Farinha de trigo", "Chocolate", "Ovos", "Açúcar", "Manteiga", "Leite", "Fermento"],
+    ingredientes: [
+      "Farinha de trigo",
+      "Chocolate",
+      "Ovos",
+      "Açúcar",
+      "Manteiga",
+      "Leite",
+      "Fermento",
+    ],
     informacoesNutricionais: {
       calorias: "450 kcal",
       proteinas: "8g",
@@ -323,14 +435,26 @@ const produtos: Produto[] = [
     preco: "R$ 20,00",
     categoria: "Pratos Prontos",
     imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: ["Carne moída", "Purê de batata", "Queijo mussarela", "Cebola", "Alho", "Azeite", "Sal"],
+    ingredientes: [
+      "Carne moída",
+      "Purê de batata",
+      "Queijo mussarela",
+      "Cebola",
+      "Alho",
+      "Azeite",
+      "Sal",
+    ],
     informacoesNutricionais: {
       calorias: "400 kcal",
       proteinas: "25g",
       carboidratos: "30g",
       gorduras: "20g",
     },
-    modoPreparo: ["Retire do freezer", "Aqueça no microondas ou forno", "Sirva quente"],
+    modoPreparo: [
+      "Retire do freezer",
+      "Aqueça no microondas ou forno",
+      "Sirva quente",
+    ],
     tempoPreparo: "15 min",
     porcoes: "2 pessoas",
     temperatura: "-18°C",
@@ -339,94 +463,110 @@ const produtos: Produto[] = [
     avaliacao: 4.0,
     totalAvaliacoes: 45,
   },
-]
+];
 
 export default function ProdutosSection() {
-  const [pesquisa, setPesquisa] = useState("")
-  const [categoriaSelecionada, setCategoriaSelecionada] = useState("Todas")
-  const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null)
-  const [modalAberto, setModalAberto] = useState(false)
-  const [quantidades, setQuantidades] = useState<Record<number, number>>({})
+  const [pesquisa, setPesquisa] = useState("");
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState("Todas");
+  const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(
+    null
+  );
+  const [modalAberto, setModalAberto] = useState(false);
+  const [quantidades, setQuantidades] = useState<Record<number, number>>({});
 
-  const { adicionarItem } = useCarrinho()
+  const { adicionarItem } = useCarrinho();
 
   // Função para obter quantidade de um produto específico
   const obterQuantidadeProduto = (produtoId: number): number => {
-    return quantidades[produtoId] || 1
-  }
+    return quantidades[produtoId] || 1;
+  };
 
   // Função para atualizar quantidade de um produto
-  const atualizarQuantidadeProduto = (produtoId: number, novaQuantidade: number) => {
-    if (novaQuantidade < 1) return
+  const atualizarQuantidadeProduto = (
+    produtoId: number,
+    novaQuantidade: number
+  ) => {
+    if (novaQuantidade < 1) return;
     setQuantidades((prev) => ({
       ...prev,
       [produtoId]: novaQuantidade,
-    }))
-  }
+    }));
+  };
 
   // Extrair categorias únicas dos produtos
   const categorias = useMemo(() => {
-    const categoriasUnicas = Array.from(new Set(produtos.map((produto) => produto.categoria)))
-    return ["Todas", ...categoriasUnicas]
-  }, [])
+    const categoriasUnicas = Array.from(
+      new Set(produtos.map((produto) => produto.categoria))
+    );
+    return ["Todas", ...categoriasUnicas];
+  }, []);
 
   // Filtrar produtos baseado na pesquisa e categoria
   const produtosFiltrados = useMemo(() => {
     return produtos.filter((produto) => {
       const matchPesquisa =
         produto.nome.toLowerCase().includes(pesquisa.toLowerCase()) ||
-        produto.descricao.toLowerCase().includes(pesquisa.toLowerCase())
+        produto.descricao.toLowerCase().includes(pesquisa.toLowerCase());
 
-      const matchCategoria = categoriaSelecionada === "Todas" || produto.categoria === categoriaSelecionada
+      const matchCategoria =
+        categoriaSelecionada === "Todas" ||
+        produto.categoria === categoriaSelecionada;
 
-      return matchPesquisa && matchCategoria
-    })
-  }, [pesquisa, categoriaSelecionada])
+      return matchPesquisa && matchCategoria;
+    });
+  }, [pesquisa, categoriaSelecionada]);
 
   const limparFiltros = () => {
-    setPesquisa("")
-    setCategoriaSelecionada("Todas")
-  }
+    setPesquisa("");
+    setCategoriaSelecionada("Todas");
+  };
 
   const abrirModal = (produto: Produto) => {
-    setProdutoSelecionado(produto)
-    setModalAberto(true)
-  }
+    setProdutoSelecionado(produto);
+    setModalAberto(true);
+  };
 
   const fecharModal = () => {
-    setModalAberto(false)
-    setProdutoSelecionado(null)
-  }
+    setModalAberto(false);
+    setProdutoSelecionado(null);
+  };
 
-  const adicionarAoCarrinhoRapido = (produto: Produto, event: React.MouseEvent) => {
-    event.stopPropagation() // Evita abrir o modal
-    const quantidade = obterQuantidadeProduto(produto.id)
+  const adicionarAoCarrinhoRapido = (
+    produto: Produto,
+    event: React.MouseEvent
+  ) => {
+    event.stopPropagation(); // Evita abrir o modal
+    const quantidade = obterQuantidadeProduto(produto.id);
     adicionarItem({
       id: produto.id,
       nome: produto.nome,
       preco: produto.preco,
-      precoNumerico: Number.parseFloat(produto.preco.replace("R$", "").replace(",", ".").trim()),
+      precoNumerico: Number.parseFloat(
+        produto.preco.replace("R$", "").replace(",", ".").trim()
+      ),
       categoria: produto.categoria,
       imagem: produto.imagem,
       peso: produto.peso,
       quantidade: quantidade,
-    })
+    });
 
     // Resetar quantidade para 1 após adicionar
     setQuantidades((prev) => ({
       ...prev,
       [produto.id]: 1,
-    }))
-  }
+    }));
+  };
 
   return (
     <section id="produtos" className="py-20 bg-gray-50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Nossos Produtos</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+            Nossos Produtos
+          </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Uma seleção especial de salgados, tortas e pratos prontos, todos preparados com ingredientes frescos e muito
-            carinho.
+            Uma seleção especial de salgados, tortas e pratos prontos, todos
+            preparados com ingredientes frescos e muito carinho.
           </p>
         </div>
 
@@ -459,7 +599,9 @@ export default function ProdutosSection() {
             {categorias.map((categoria) => (
               <Button
                 key={categoria}
-                variant={categoriaSelecionada === categoria ? "default" : "outline"}
+                variant={
+                  categoriaSelecionada === categoria ? "default" : "outline"
+                }
                 size="sm"
                 onClick={() => setCategoriaSelecionada(categoria)}
                 className={`${
@@ -493,7 +635,12 @@ export default function ProdutosSection() {
                   </button>
                 </Badge>
               )}
-              <Button variant="ghost" size="sm" onClick={limparFiltros} className="text-blue-600 hover:text-blue-700">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={limparFiltros}
+                className="text-blue-600 hover:text-blue-700"
+              >
                 Limpar todos
               </Button>
             </div>
@@ -511,29 +658,38 @@ export default function ProdutosSection() {
 
         {/* Grid de Produtos */}
         {produtosFiltrados.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {produtosFiltrados.map((produto) => (
               <Card
                 key={produto.id}
-                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                className="flex flex-row-reverse hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => abrirModal(produto)}
               >
-                <div className="relative">
+                <div className="relative w-[45%] sm:w-[40%] overflow-hidden">
                   <Image
                     src={produto.imagem || "/placeholder.svg"}
                     alt={produto.nome}
                     width={300}
                     height={200}
-                    className="w-full h-48 object-cover"
+                    className="w-full h-[168px] sm:h-48 object-cover"
                   />
-                  <Badge className="absolute top-2 left-2 bg-blue-600">{produto.categoria}</Badge>
                 </div>
-                <CardContent className="p-4">
-                  <h3 className="text-lg font-semibold mb-2">{produto.nome}</h3>
-                  <p className="text-gray-600 text-sm mb-3">{produto.descricao}</p>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xl font-bold text-blue-600">{produto.preco}</span>
+                <CardContent className="relative flex flex-col w-[70%] mt-1 p-2 sm:p-3">
+                  <h3 className="text-md sm:text-lg font-semibold mb-2 line-clamp-1">
+                    {produto.nome}
+                  </h3>
+                  <p className="text-gray-600 text-xs sm:text-sm mb-3 line-clamp-2">
+                    {produto.descricao}
+                  </p>
+                  <div className="flex items-center text-xs sm:text-md gap-2 mb-1 sm:mb-3">
+                    a partir de
+                    <span className="font-bold text-blue-600">
+                      {produto.preco}
+                    </span>
                   </div>
+                  <Badge className="absolute -top-5 left-2 bg-blue-600">
+                    {produto.categoria}
+                  </Badge>
 
                   {/* Controles de Quantidade e Botão Adicionar */}
                   <div className="flex items-center gap-2">
@@ -542,11 +698,14 @@ export default function ProdutosSection() {
                         variant="ghost"
                         size="sm"
                         onClick={(e) => {
-                          e.stopPropagation()
-                          atualizarQuantidadeProduto(produto.id, obterQuantidadeProduto(produto.id) - 1)
+                          e.stopPropagation();
+                          atualizarQuantidadeProduto(
+                            produto.id,
+                            obterQuantidadeProduto(produto.id) - 1
+                          );
                         }}
                         disabled={obterQuantidadeProduto(produto.id) <= 1}
-                        className="h-8 w-8 p-0"
+                        className="h-4 sm:h-8 w-4 sm:w-8 p-0"
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
@@ -557,15 +716,21 @@ export default function ProdutosSection() {
                         variant="ghost"
                         size="sm"
                         onClick={(e) => {
-                          e.stopPropagation()
-                          atualizarQuantidadeProduto(produto.id, obterQuantidadeProduto(produto.id) + 1)
+                          e.stopPropagation();
+                          atualizarQuantidadeProduto(
+                            produto.id,
+                            obterQuantidadeProduto(produto.id) + 1
+                          );
                         }}
-                        className="h-8 w-8 p-0"
+                        className="h-4 sm:h-8 w-4 sm:w-8 p-0"
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
-                    <Button size="sm" onClick={(e) => adicionarAoCarrinhoRapido(produto, e)} className="flex-1">
+                    <Button
+                      onClick={(e) => adicionarAoCarrinhoRapido(produto, e)}
+                      className="text-[10px] p-2 h-fit sm:p-3 sm:text-sm"
+                    >
                       Adicionar
                     </Button>
                   </div>
@@ -578,15 +743,23 @@ export default function ProdutosSection() {
             <div className="text-gray-400 mb-4">
               <Search className="h-16 w-16 mx-auto" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">Nenhum produto encontrado</h3>
-            <p className="text-gray-500 mb-4">Tente ajustar sua pesquisa ou selecionar uma categoria diferente.</p>
+            <h3 className="text-xl font-semibold text-gray-600 mb-2">
+              Nenhum produto encontrado
+            </h3>
+            <p className="text-gray-500 mb-4">
+              Tente ajustar sua pesquisa ou selecionar uma categoria diferente.
+            </p>
             <Button variant="outline" onClick={limparFiltros}>
               Limpar filtros
             </Button>
           </div>
         )}
       </div>
-      <ProdutoModal produto={produtoSelecionado} isOpen={modalAberto} onClose={fecharModal} />
+      <ProdutoModal
+        produto={produtoSelecionado}
+        isOpen={modalAberto}
+        onClose={fecharModal}
+      />
     </section>
-  )
+  );
 }
