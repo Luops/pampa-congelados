@@ -60,7 +60,7 @@ export default function Header() {
 
             {/* Logo */}
             <div className="w-full flex items-center justify-center space-x-2">
-              <h1 className="text-2xl font-bold">Pampa Congelados</h1>
+              <h1 className="text-xl min-[360px]:text-2xl font-bold text-center">Pampa Congelados</h1>
             </div>
           </div>
 

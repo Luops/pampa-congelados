@@ -1,8 +1,7 @@
 "use client";
 
 import type React from "react";
-
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,469 +11,200 @@ import Image from "next/image";
 import ProdutoModal from "./produto-modal";
 import { useCarrinho } from "@/contexts/carrinho-context";
 
-interface Produto {
+interface ProdutoApi {
   id: number;
-  nome: string;
-  descricao: string;
-  preco: string;
-  categoria: string;
-  imagem: string;
-  imagens?: string[];
-  ingredientes: string[];
-  informacoesNutricionais: {
-    calorias: string;
-    proteinas: string;
-    carboidratos: string;
-    gorduras: string;
+  product_name: string;
+  image_url: string;
+  description: string;
+  reviews_stars_by_person?: number; // Avaliação em estrelas
+  reviews_count?: number; // Total de avaliações
+  price: string;
+  promo_price?: string; // Preço promocional (se existir na DB)
+  stock_quantity?: number; // Quantidade em estoque (se existir na DB)
+  ingredients?: string[]; // Ingredientes
+  preparation?: string[]; // Modo de preparo
+  nutritional_info?: {
+    // Informações Nutricionais (se for JSONB na DB)
+    calories?: string;
+    proteins?: string;
+    carbohydrates?: string;
+    fats?: string;
   };
-  modoPreparo: string[];
-  tempoPreparo: string;
-  porcoes: string;
-  temperatura: string;
-  validade: string;
-  peso: string;
-  avaliacao: number;
-  totalAvaliacoes: number;
+  details?: {
+    // Detalhes adicionais (se for JSONB na DB)
+    yield?: string;
+    weight?: string;
+    validity?: string;
+    storageTemperature?: string;
+    cookingTime?: string; // Add this if your DB has a field for preparation time
+  };
+  category?: string; // Para mapear para 'categoria'
+  created_at?: string; // Data de criação
 }
 
-const produtos: Produto[] = [
-  {
-    id: 1,
-    nome: "Coxinha de Frango",
-    descricao:
-      "Coxinha tradicional com recheio cremoso de frango desfiado e temperos especiais",
-    preco: "R$ 2,50",
-    categoria: "Salgados",
-    imagem: "/placeholder.svg?height=200&width=200",
-    imagens: [
-      "/placeholder.svg?height=400&width=400",
-      "/placeholder.svg?height=400&width=400",
-      "/placeholder.svg?height=400&width=400",
-    ],
-    ingredientes: [
-      "Farinha de trigo",
-      "Frango desfiado",
-      "Cebola",
-      "Alho",
-      "Temperos naturais",
-      "Óleo vegetal",
-      "Sal",
-    ],
-    informacoesNutricionais: {
-      calorias: "180 kcal",
-      proteinas: "12g",
-      carboidratos: "15g",
-      gorduras: "8g",
-    },
-    modoPreparo: [
-      "Retire do freezer 10 minutos antes de fritar",
-      "Aqueça o óleo a 180°C",
-      "Frite por 3-4 minutos até dourar",
-      "Escorra em papel absorvente",
-      "Sirva quente",
-    ],
-    tempoPreparo: "5 min",
-    porcoes: "1 unidade",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "80g",
-    avaliacao: 5,
-    totalAvaliacoes: 127,
+// Sua interface 'Produto' existente, que será preenchida a partir de 'ProdutoApi'
+interface Produto {
+  id: number;
+  nome: string; // Mapeia de product_name
+  descricao: string; // Mapeia de description
+  preco: string; // Mapeia de price
+  promoPreco?: string; // Mapeia de promo_price
+  categoria: string; // Mapeia de category
+  imagem: string; // Mapeia de image_url
+  imagens?: string[]; // Pode ser populado com image_url se não houver coluna para múltiplas imagens
+  ingredientes?: string[]; // Mapeia de ingredients
+  informacoesNutricionais?: {
+    // Now an object to match ProdutoDetalhado
+    calorias?: string;
+    proteinas?: string;
+    carboidratos?: string;
+    gorduras?: string;
+  };
+  modoPreparo?: string[]; // Mapeia de preparation
+  tempoPreparo?: string; // Mapeia de details.preparationTime
+  porcoes?: string; // Mapeia de details.yield
+  temperatura?: string; // Mapeia de details.storageTemperature
+  validade?: string; // Mapeia de details.validity
+  peso?: string; // Mapeia de details.weight
+  avaliacao?: number; // Mapeia de reviews_stars_by_person
+  totalAvaliacoes?: number; // Mapeia de reviews_count
+}
+
+const mapProdutoApiToProduto = (apiProduto: ProdutoApi): Produto => ({
+  id: apiProduto.id,
+  nome: apiProduto.product_name,
+  descricao: apiProduto.description,
+  // Aplica a formatação ao preço principal
+  preco: formatarPreco(apiProduto.price),
+  // Aplica a formatação ao preço promocional, se existir
+  promoPreco: apiProduto.promo_price
+    ? formatarPreco(apiProduto.promo_price)
+    : undefined,
+  categoria: apiProduto.category || "Geral", // Assumindo 'category' no DB
+  imagem: apiProduto.image_url,
+  imagens: apiProduto.image_url ? [apiProduto.image_url] : [], // Populado com a URL principal por enquanto
+  ingredientes: (() => {
+    if (Array.isArray(apiProduto.ingredients)) {
+      return apiProduto.ingredients;
+    }
+    if (
+      typeof apiProduto.ingredients === "string" &&
+      apiProduto.ingredients.trim() !== ""
+    ) {
+      // Divide por ponto e vírgula, e depois por quebra de linha.
+      // O regex /;|\n/g significa dividir por ';' OU por '\n' (globalmente)
+      return apiProduto.ingredients
+        .split(/;|\n/g) // Dividir por ';' ou '\n'
+        .map((item) => item.trim()) // Remover espaços em branco de cada item
+        .filter((item) => item !== ""); // Remover strings vazias resultantes de múltiplos delimitadores
+    }
+    return []; // Retorne um array vazio se não houver ingredientes válidos
+  })(),
+  informacoesNutricionais: {
+    // Map to the object structure
+    calorias: apiProduto.nutritional_info?.calories,
+    proteinas: apiProduto.nutritional_info?.proteins,
+    carboidratos: apiProduto.nutritional_info?.carbohydrates,
+    gorduras: apiProduto.nutritional_info?.fats,
   },
-  {
-    id: 2,
-    nome: "Pastel de Queijo",
-    descricao: "Pastel crocante com queijo derretido e massa artesanal",
-    preco: "R$ 3,00",
-    categoria: "Salgados",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Farinha de trigo",
-      "Queijo mussarela",
-      "Ovos",
-      "Óleo vegetal",
-      "Sal",
-      "Fermento",
-    ],
-    informacoesNutricionais: {
-      calorias: "220 kcal",
-      proteinas: "10g",
-      carboidratos: "18g",
-      gorduras: "12g",
-    },
-    modoPreparo: [
-      "Retire do freezer",
-      "Aqueça o óleo a 180°C",
-      "Frite por 4-5 minutos",
-      "Vire uma vez durante a fritura",
-      "Sirva imediatamente",
-    ],
-    tempoPreparo: "6 min",
-    porcoes: "1 unidade",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "100g",
-    avaliacao: 4,
-    totalAvaliacoes: 89,
-  },
-  {
-    id: 3,
-    nome: "Empada de Palmito",
-    descricao: "Empada artesanal com recheio de palmito",
-    preco: "R$ 4,00",
-    categoria: "Salgados",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Farinha de trigo",
-      "Palmito",
-      "Ovos",
-      "Cebola",
-      "Azeitonas",
-      "Requeijão",
-      "Sal",
-    ],
-    informacoesNutricionais: {
-      calorias: "250 kcal",
-      proteinas: "8g",
-      carboidratos: "20g",
-      gorduras: "15g",
-    },
-    modoPreparo: [
-      "Retire do freezer",
-      "Aqueça o forno a 180°C",
-      "Asse por 20-25 minutos",
-      "Sirva quente",
-    ],
-    tempoPreparo: "25 min",
-    porcoes: "1 unidade",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "120g",
-    avaliacao: 4.5,
-    totalAvaliacoes: 63,
-  },
-  {
-    id: 4,
-    nome: "Quibe Assado",
-    descricao: "Quibe tradicional assado com carne temperada",
-    preco: "R$ 3,50",
-    categoria: "Salgados",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Trigo para quibe",
-      "Carne moída",
-      "Cebola",
-      "Hortelã",
-      "Especiarias árabes",
-      "Azeite",
-      "Sal",
-    ],
-    informacoesNutricionais: {
-      calorias: "200 kcal",
-      proteinas: "15g",
-      carboidratos: "10g",
-      gorduras: "10g",
-    },
-    modoPreparo: [
-      "Retire do freezer",
-      "Aqueça o forno a 180°C",
-      "Asse por 30-35 minutos",
-      "Sirva com limão",
-    ],
-    tempoPreparo: "35 min",
-    porcoes: "1 unidade",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "100g",
-    avaliacao: 4.2,
-    totalAvaliacoes: 48,
-  },
-  {
-    id: 5,
-    nome: "Torta de Frango",
-    descricao: "Torta individual com frango e catupiry",
-    preco: "R$ 8,00",
-    categoria: "Tortas",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Farinha de trigo",
-      "Frango desfiado",
-      "Catupiry",
-      "Ovos",
-      "Cebola",
-      "Azeitonas",
-      "Sal",
-    ],
-    informacoesNutricionais: {
-      calorias: "350 kcal",
-      proteinas: "20g",
-      carboidratos: "25g",
-      gorduras: "20g",
-    },
-    modoPreparo: [
-      "Retire do freezer",
-      "Aqueça o forno a 180°C",
-      "Asse por 25-30 minutos",
-      "Sirva quente",
-    ],
-    tempoPreparo: "30 min",
-    porcoes: "1 unidade",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "200g",
-    avaliacao: 4.7,
-    totalAvaliacoes: 92,
-  },
-  {
-    id: 6,
-    nome: "Lasanha Bolonhesa",
-    descricao: "Lasanha congelada para 4 pessoas",
-    preco: "R$ 25,00",
-    categoria: "Pratos Prontos",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Massa de lasanha",
-      "Carne moída",
-      "Molho de tomate",
-      "Queijo mussarela",
-      "Presunto",
-      "Requeijão",
-      "Cebola",
-    ],
-    informacoesNutricionais: {
-      calorias: "450 kcal",
-      proteinas: "30g",
-      carboidratos: "35g",
-      gorduras: "25g",
-    },
-    modoPreparo: [
-      "Retire do freezer",
-      "Aqueça o forno a 180°C",
-      "Asse por 40-45 minutos",
-      "Sirva quente",
-    ],
-    tempoPreparo: "45 min",
-    porcoes: "4 pessoas",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "800g",
-    avaliacao: 4.3,
-    totalAvaliacoes: 75,
-  },
-  {
-    id: 7,
-    nome: "Risole de Camarão",
-    descricao: "Risole crocante com recheio de camarão",
-    preco: "R$ 4,50",
-    categoria: "Salgados",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Farinha de trigo",
-      "Camarão",
-      "Cebola",
-      "Alho",
-      "Salsa",
-      "Requeijão",
-      "Sal",
-    ],
-    informacoesNutricionais: {
-      calorias: "230 kcal",
-      proteinas: "14g",
-      carboidratos: "16g",
-      gorduras: "12g",
-    },
-    modoPreparo: [
-      "Retire do freezer",
-      "Aqueça o óleo a 180°C",
-      "Frite por 3-4 minutos",
-      "Sirva quente",
-    ],
-    tempoPreparo: "4 min",
-    porcoes: "1 unidade",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "90g",
-    avaliacao: 4.6,
-    totalAvaliacoes: 58,
-  },
-  {
-    id: 8,
-    nome: "Torta de Palmito",
-    descricao: "Torta salgada com palmito e azeitonas",
-    preco: "R$ 12,00",
-    categoria: "Tortas",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Farinha de trigo",
-      "Palmito",
-      "Azeitonas",
-      "Ovos",
-      "Cebola",
-      "Requeijão",
-      "Sal",
-    ],
-    informacoesNutricionais: {
-      calorias: "400 kcal",
-      proteinas: "18g",
-      carboidratos: "30g",
-      gorduras: "22g",
-    },
-    modoPreparo: [
-      "Retire do freezer",
-      "Aqueça o forno a 180°C",
-      "Asse por 30-35 minutos",
-      "Sirva quente",
-    ],
-    tempoPreparo: "35 min",
-    porcoes: "2 pessoas",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "300g",
-    avaliacao: 4.4,
-    totalAvaliacoes: 69,
-  },
-  {
-    id: 9,
-    nome: "Strogonoff de Carne",
-    descricao: "Strogonoff congelado para 3 pessoas",
-    preco: "R$ 22,00",
-    categoria: "Pratos Prontos",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Carne",
-      "Champignon",
-      "Creme de leite",
-      "Cebola",
-      "Mostarda",
-      "Ketchup",
-      "Arroz",
-    ],
-    informacoesNutricionais: {
-      calorias: "500 kcal",
-      proteinas: "35g",
-      carboidratos: "40g",
-      gorduras: "25g",
-    },
-    modoPreparo: [
-      "Retire do freezer",
-      "Aqueça em fogo baixo",
-      "Sirva com arroz",
-    ],
-    tempoPreparo: "20 min",
-    porcoes: "3 pessoas",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "600g",
-    avaliacao: 4.1,
-    totalAvaliacoes: 52,
-  },
-  {
-    id: 10,
-    nome: "Brigadeiro Gourmet",
-    descricao: "Brigadeiros artesanais diversos sabores",
-    preco: "R$ 2,00",
-    categoria: "Doces",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Leite condensado",
-      "Chocolate em pó",
-      "Manteiga",
-      "Chocolate granulado",
-      "Sabores variados",
-    ],
-    informacoesNutricionais: {
-      calorias: "120 kcal",
-      proteinas: "2g",
-      carboidratos: "20g",
-      gorduras: "4g",
-    },
-    modoPreparo: ["Pronto para consumo"],
-    tempoPreparo: "0 min",
-    porcoes: "1 unidade",
-    temperatura: "5°C",
-    validade: "7 dias",
-    peso: "20g",
-    avaliacao: 4.9,
-    totalAvaliacoes: 150,
-  },
-  {
-    id: 11,
-    nome: "Torta de Chocolate",
-    descricao: "Torta doce de chocolate com cobertura",
-    preco: "R$ 18,00",
-    categoria: "Doces",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Farinha de trigo",
-      "Chocolate",
-      "Ovos",
-      "Açúcar",
-      "Manteiga",
-      "Leite",
-      "Fermento",
-    ],
-    informacoesNutricionais: {
-      calorias: "450 kcal",
-      proteinas: "8g",
-      carboidratos: "50g",
-      gorduras: "25g",
-    },
-    modoPreparo: ["Pronto para consumo"],
-    tempoPreparo: "0 min",
-    porcoes: "6 pessoas",
-    temperatura: "5°C",
-    validade: "5 dias",
-    peso: "500g",
-    avaliacao: 4.8,
-    totalAvaliacoes: 110,
-  },
-  {
-    id: 12,
-    nome: "Escondidinho de Carne",
-    descricao: "Escondidinho tradicional congelado",
-    preco: "R$ 20,00",
-    categoria: "Pratos Prontos",
-    imagem: "/placeholder.svg?height=200&width=200",
-    ingredientes: [
-      "Carne moída",
-      "Purê de batata",
-      "Queijo mussarela",
-      "Cebola",
-      "Alho",
-      "Azeite",
-      "Sal",
-    ],
-    informacoesNutricionais: {
-      calorias: "400 kcal",
-      proteinas: "25g",
-      carboidratos: "30g",
-      gorduras: "20g",
-    },
-    modoPreparo: [
-      "Retire do freezer",
-      "Aqueça no microondas ou forno",
-      "Sirva quente",
-    ],
-    tempoPreparo: "15 min",
-    porcoes: "2 pessoas",
-    temperatura: "-18°C",
-    validade: "6 meses congelado",
-    peso: "400g",
-    avaliacao: 4.0,
-    totalAvaliacoes: 45,
-  },
-];
+  peso: apiProduto.details?.weight,
+  avaliacao: apiProduto.reviews_stars_by_person,
+  totalAvaliacoes: apiProduto.reviews_count,
+  modoPreparo: (() => {
+    // Usamos um IIFE para lógica condicional mais clara
+    if (Array.isArray(apiProduto.preparation)) {
+      return apiProduto.preparation;
+    }
+    if (
+      typeof apiProduto.preparation === "string" &&
+      apiProduto.preparation.trim() !== ""
+    ) {
+      // Divida por quebra de linha. Se for apenas uma frase, ainda será um array com um item.
+      return apiProduto.preparation
+        .split(/;|\n/g) // Dividir por ';' ou '\n'
+        .map((item) => item.trim()) // Remover espaços em branco de cada item
+        .filter((item) => item !== ""); // Remover strings vazias resultantes de múltiplos delimitadores
+    }
+    // Se for null, undefined, ou string vazia, retorne um array vazio para evitar o erro .map is not a function
+    return [];
+  })(),
+  porcoes: apiProduto.details?.yield,
+  temperatura: apiProduto.details?.storageTemperature,
+  validade: apiProduto.details?.validity,
+  tempoPreparo: apiProduto.details?.cookingTime, // Mapeamento para tempoPreparo
+});
+
+// Função auxiliar para formatar o preço
+const formatarPreco = (preco: string | number | undefined): string => {
+  if (preco === undefined || preco === null) {
+    return "R$ 0,00"; // Ou qualquer valor padrão para preço não definido
+  }
+
+  // Converte para string se for número
+  let precoStr = String(preco);
+
+  // 1. Substituir vírgula por ponto para garantir que seja um formato numérico válido para parseFloat
+  precoStr = precoStr.replace(",", ".");
+
+  // 2. Converte para número float
+  const precoNumerico = parseFloat(precoStr);
+
+  // 3. Verifica se é um número válido
+  if (isNaN(precoNumerico)) {
+    return "R$ 0,00"; // Retorna um valor padrão se a conversão falhar
+  }
+
+  // 4. Formata para moeda brasileira com 2 casas decimais, usando Intl.NumberFormat
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(precoNumerico);
+};
 
 export default function ProdutosSection() {
+  // Estados para carregar os produtos do DB
+  const [fetchedProducts, setFetchedProducts] = useState<Produto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [pesquisa, setPesquisa] = useState("");
   const [categoriaSelecionada, setCategoriaSelecionada] = useState("Todas");
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(
     null
   );
+  console.log("Produto que foi selecionado: ", produtoSelecionado);
   const [modalAberto, setModalAberto] = useState(false);
   const [quantidades, setQuantidades] = useState<Record<number, number>>({});
 
   const { adicionarItem } = useCarrinho();
+
+  // useEffect para buscar os produtos da API quando o componente é montado
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true); // Começa o carregamento
+        const response = await fetch("/api/products", { method: "GET" }); // Rota da sua API
+        if (!response.ok) {
+          throw new Error(`Erro HTTP! status: ${response.status}`);
+        }
+        const data: ProdutoApi[] = await response.json();
+        // Mapeia os dados da API para a interface Produto esperada pelo componente
+        const mappedProducts = data.map(mapProdutoApiToProduto);
+        setFetchedProducts(mappedProducts);
+      } catch (err: any) {
+        console.error("Falha ao buscar produtos:", err);
+        setError(
+          "Não foi possível carregar os produtos. Tente novamente mais tarde."
+        );
+      } finally {
+        setLoading(false); // Finaliza o carregamento
+      }
+    };
+
+    fetchProducts();
+  }, []); // Array de dependências vazio para rodar apenas uma vez na montagem
 
   // Função para obter quantidade de um produto específico
   const obterQuantidadeProduto = (produtoId: number): number => {
@@ -493,17 +223,18 @@ export default function ProdutosSection() {
     }));
   };
 
-  // Extrair categorias únicas dos produtos
+  // Extrair categorias únicas dos produtos carregados (agora fetchedProducts)
   const categorias = useMemo(() => {
     const categoriasUnicas = Array.from(
-      new Set(produtos.map((produto) => produto.categoria))
+      new Set(fetchedProducts.map((produto) => produto.categoria))
     );
     return ["Todas", ...categoriasUnicas];
-  }, []);
+  }, [fetchedProducts]); // Dependência alterada para fetchedProducts
 
-  // Filtrar produtos baseado na pesquisa e categoria
+  // Filtrar produtos baseado na pesquisa e categoria (agora fetchedProducts)
   const produtosFiltrados = useMemo(() => {
-    return produtos.filter((produto) => {
+    return fetchedProducts.filter((produto) => {
+      // Usa fetchedProducts aqui
       const matchPesquisa =
         produto.nome.toLowerCase().includes(pesquisa.toLowerCase()) ||
         produto.descricao.toLowerCase().includes(pesquisa.toLowerCase());
@@ -514,7 +245,7 @@ export default function ProdutosSection() {
 
       return matchPesquisa && matchCategoria;
     });
-  }, [pesquisa, categoriaSelecionada]);
+  }, [pesquisa, categoriaSelecionada, fetchedProducts]); // Dependência alterada para fetchedProducts
 
   const limparFiltros = () => {
     setPesquisa("");
@@ -548,6 +279,15 @@ export default function ProdutosSection() {
       imagem: produto.imagem,
       peso: produto.peso,
       quantidade: quantidade,
+      ingredientes: produto.ingredientes, // Ensure ingredients are passed
+      informacoesNutricionais: produto.informacoesNutricionais, // Ensure nutritional info is passed
+      modoPreparo: produto.modoPreparo, // Ensure preparation method is passed
+      tempoPreparo: produto.tempoPreparo, // Ensure preparation time is passed
+      porcoes: produto.porcoes, // Ensure portions are passed
+      temperatura: produto.temperatura, // Ensure temperature is passed
+      validade: produto.validade, // Ensure validity is passed
+      avaliacao: produto.avaliacao,
+      totalAvaliacoes: produto.totalAvaliacoes,
     });
 
     // Resetar quantidade para 1 após adicionar
@@ -557,9 +297,26 @@ export default function ProdutosSection() {
     }));
   };
 
+  // Renderização condicional para estados de carregamento e erro
+  if (loading) {
+    return (
+      <section id="produtos" className="py-20 bg-gray-50 text-center">
+        <p className="text-xl text-gray-600">Carregando produtos...</p>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section id="produtos" className="py-20 bg-gray-50 text-center">
+        <p className="text-xl text-red-600">{error}</p>
+      </section>
+    );
+  }
+
   return (
     <section id="produtos" className="py-20 bg-gray-50">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-1 sm:px-0">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
             Nossos Produtos
@@ -650,9 +407,9 @@ export default function ProdutosSection() {
         {/* Contador de Resultados */}
         <div className="text-center mb-6">
           <p className="text-gray-600">
-            {produtosFiltrados.length === produtos.length
-              ? `Mostrando todos os ${produtos.length} produtos`
-              : `Encontrados ${produtosFiltrados.length} de ${produtos.length} produtos`}
+            {produtosFiltrados.length === fetchedProducts.length // Usa fetchedProducts aqui
+              ? `Mostrando todos os ${fetchedProducts.length} produtos`
+              : `Encontrados ${produtosFiltrados.length} de ${fetchedProducts.length} produtos`}
           </p>
         </div>
 
@@ -674,18 +431,32 @@ export default function ProdutosSection() {
                     className="w-full h-[168px] sm:h-48 object-cover"
                   />
                 </div>
-                <CardContent className="relative flex flex-col w-[70%] mt-1 p-2 sm:p-3">
+                <CardContent className="relative flex flex-col !w-[55%] sm:w-[60%] mt-1 p-2 sm:p-3">
                   <h3 className="text-md sm:text-lg font-semibold mb-2 line-clamp-1">
                     {produto.nome}
                   </h3>
                   <p className="text-gray-600 text-xs sm:text-sm mb-3 line-clamp-2">
                     {produto.descricao}
                   </p>
-                  <div className="flex items-center text-xs sm:text-md gap-2 mb-1 sm:mb-3">
+                  <div className="flex items-center text-xs sm:text-md gap-1 mb-1 sm:mb-3">
                     a partir de
-                    <span className="font-bold text-blue-600">
-                      {produto.preco}
-                    </span>
+                    {produto.promoPreco ? (
+                      <>
+                        {/* Preço original riscado */}
+                        <span className="font-semibold text-gray-500 line-through">
+                          {produto.preco}
+                        </span>
+                        {/* Preço promocional em destaque */}
+                        <span className="font-bold text-red-600">
+                          {produto.promoPreco}
+                        </span>
+                      </>
+                    ) : (
+                      // Se não houver preço promocional, exibe apenas o preço normal
+                      <span className="font-bold text-blue-600">
+                        {produto.preco}
+                      </span>
+                    )}
                   </div>
                   <Badge className="absolute -top-5 left-2 bg-blue-600">
                     {produto.categoria}

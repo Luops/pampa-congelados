@@ -34,21 +34,23 @@ interface ProdutoDetalhado {
   categoria: string;
   imagem: string;
   imagens?: string[];
-  ingredientes: string[];
-  informacoesNutricionais: {
-    calorias: string;
-    proteinas: string;
-    carboidratos: string;
-    gorduras: string;
+  ingredientes?: string[]; // Change to optional
+  informacoesNutricionais?: {
+    // Change to optional
+    calorias?: string;
+    proteinas?: string;
+    carboidratos?: string;
+    gorduras?: string;
   };
-  modoPreparo: string[];
-  tempoPreparo: string;
-  porcoes: string;
-  temperatura: string;
-  validade: string;
-  peso: string;
-  avaliacao: number;
-  totalAvaliacoes: number;
+  calorias?: string; // Change to optional
+  modoPreparo?: string[]; // Change to optional
+  tempoPreparo?: string; // Change to optional
+  porcoes?: string; // Change to optional
+  temperatura?: string; // Change to optional
+  validade?: string; // Change to optional
+  peso?: string; // Change to optional
+  avaliacao?: number; // Change to optional
+  totalAvaliacoes?: number; // Change to optional
 }
 
 interface ProdutoModalProps {
@@ -70,6 +72,7 @@ export default function ProdutoModal({
   const quantidadeNoCarrinho = obterQuantidadeItem(produto?.id || 0);
 
   if (!produto) return null;
+  console.log("Produto no modal: ", produto);
 
   const imagens = produto.imagens || [produto.imagem];
 
@@ -101,6 +104,8 @@ export default function ProdutoModal({
         imagem: produto.imagem,
         peso: produto.peso,
         quantidade: quantidade,
+        ingredientes: produto.ingredientes,
+        calorias: produto.informacoesNutricionais?.calorias,
       });
       // Resetar quantidade para 1 após adicionar
       setQuantidade(1);
@@ -109,17 +114,17 @@ export default function ProdutoModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[98vw] max-w-4xl max-h-[90vh] flex flex-col items-center overflow-y-auto lg:px-5">
+      <DialogContent className="w-[98vw] max-w-xl max-h-[90vh] flex flex-col items-center overflow-y-auto px-2 sm:px-5 pb-14">
         <DialogHeader>
           <DialogTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-center">
             {produto.nome}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 w-[88vw] lg:w-full">
+        <div className="space-y-4 w-full">
           {/* Galeria de Imagens */}
           <div className="space-y-4 w-full flex flex-col">
-            <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 max-h-[550px]">
+            <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 max-h-[300px]">
               <Image
                 src={imagens[imagemAtual] || "/placeholder.svg"}
                 alt={produto.nome}
@@ -157,13 +162,13 @@ export default function ProdutoModal({
           </div>
 
           {/* Informações do Produto */}
-          <div className="space-y-4 max-[420px]:w-[85vw]">
+          <div className="!w-full space-y-4 max-[420px]:w-[85vw]">
             <div>
               <p className="text-gray-600 mb-4">{produto.descricao}</p>
 
               {/* Avaliação */}
               <div className="flex items-center gap-2 mb-4">
-                <div className="flex">{renderStars(produto.avaliacao)}</div>
+                <div className="flex">{renderStars(produto.avaliacao || 0)}</div>
                 <span className="text-sm text-gray-600">
                   {produto.avaliacao}/5 ({produto.totalAvaliacoes} avaliações)
                 </span>
@@ -197,24 +202,24 @@ export default function ProdutoModal({
               {/* Controles de Quantidade */}
               <div className="flex items-center gap-4 mb-6">
                 <span className="text-sm font-medium">Quantidade:</span>
-                <div className="flex items-center border rounded-md">
+                <div className="flex items-center border rounded-md h-7">
                   <Button
                     variant="ghost"
-                    size="sm"
                     onClick={decrementarQuantidade}
                     disabled={quantidade <= 1}
+                    className="h-full px-2"
                   >
-                    <Minus className="h-4 w-4" />
+                    <Minus className="!h-full !w-4 text-red-600" />
                   </Button>
-                  <span className="px-4 py-2 min-w-[3rem] text-center">
+                  <span className="!px-0 w-fit text-center">
                     {quantidade}
                   </span>
                   <Button
                     variant="ghost"
-                    size="sm"
                     onClick={incrementarQuantidade}
+                    className="h-full px-2"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="!h-full hover: !w-4 text-green-700" />
                   </Button>
                 </div>
               </div>
@@ -222,7 +227,7 @@ export default function ProdutoModal({
               {/* Botões de Ação */}
               <div className="flex flex-col items-center gap-2 mb-4">
                 <Button
-                  className="w-full flex-1 bg-blue-600 hover:bg-blue-700 py-4"
+                  className="!w-full flex-1 bg-blue-600 hover:bg-blue-700 py-4"
                   onClick={adicionarAoCarrinho}
                 >
                   <ShoppingCart className="h-4 w-4 mr-2" />
@@ -275,22 +280,34 @@ export default function ProdutoModal({
           <TabsContent value="ingredientes" className="mt-4">
             <div className="space-y-2">
               <h4 className="font-semibold">Ingredientes:</h4>
-              <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                {produto.ingredientes.map((ingrediente, index) => (
-                  <li key={index}>{ingrediente}</li>
-                ))}
-              </ul>
+              {produto.ingredientes && produto.ingredientes.length > 0 ? (
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                  {produto.ingredientes.map((ingrediente, index) => (
+                    <li key={index}>{ingrediente}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Informações de ingredientes não disponíveis.
+                </p>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="preparo" className="mt-4">
             <div className="space-y-2">
               <h4 className="font-semibold">Modo de Preparo:</h4>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
-                {produto.modoPreparo.map((passo, index) => (
-                  <li key={index}>{passo}</li>
-                ))}
-              </ol>
+              {produto.modoPreparo && produto.modoPreparo.length > 0 ? (
+                <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+                  {produto.modoPreparo.map((passo, index) => (
+                    <li key={index}>{passo}</li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Informações de modo de preparo não disponíveis.
+                </p>
+              )}
             </div>
           </TabsContent>
 
@@ -299,32 +316,38 @@ export default function ProdutoModal({
               <h4 className="font-semibold">
                 Informações Nutricionais (por porção):
               </h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <div className="text-sm text-gray-600">Calorias</div>
-                  <div className="font-semibold">
-                    {produto.informacoesNutricionais.calorias}
+              {produto.informacoesNutricionais ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="text-sm text-gray-600">Calorias</div>
+                    <div className="font-semibold">
+                      {produto.informacoesNutricionais.calorias || "N/A"}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="text-sm text-gray-600">Proteínas</div>
+                    <div className="font-semibold">
+                      {produto.informacoesNutricionais.proteinas || "N/A"}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="text-sm text-gray-600">Carboidratos</div>
+                    <div className="font-semibold">
+                      {produto.informacoesNutricionais.carboidratos || "N/A"}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="text-sm text-gray-600">Gorduras</div>
+                    <div className="font-semibold">
+                      {produto.informacoesNutricionais.gorduras || "N/A"}
+                    </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <div className="text-sm text-gray-600">Proteínas</div>
-                  <div className="font-semibold">
-                    {produto.informacoesNutricionais.proteinas}
-                  </div>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <div className="text-sm text-gray-600">Carboidratos</div>
-                  <div className="font-semibold">
-                    {produto.informacoesNutricionais.carboidratos}
-                  </div>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <div className="text-sm text-gray-600">Gorduras</div>
-                  <div className="font-semibold">
-                    {produto.informacoesNutricionais.gorduras}
-                  </div>
-                </div>
-              </div>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Informações nutricionais não disponíveis.
+                </p>
+              )}
             </div>
           </TabsContent>
 

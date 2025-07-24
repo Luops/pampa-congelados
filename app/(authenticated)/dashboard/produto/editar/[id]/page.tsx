@@ -83,6 +83,7 @@ export default function EditProductPage() {
         validity: "",
         storageTemperature: "",
         yield: "",
+        cookingTime: "",
       },
       imageFile: undefined,
     },
@@ -611,6 +612,22 @@ export default function EditProductPage() {
                   <FormField
                     control={form.control}
                     name="details.yield"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Rendimento</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: 4 porções, 10 fatias"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="details.cookingTime"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Rendimento</FormLabel>

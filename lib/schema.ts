@@ -49,6 +49,7 @@ export const productSchema = z.object({
       validity: z.string().optional(),
       storageTemperature: z.string().optional(),
       yield: z.string().optional(),
+      cookingTime: z.string().optional(),
     })
     .optional(),
   imageFile: z.any().optional(), // File type is handled separately

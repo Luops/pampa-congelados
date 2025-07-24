@@ -72,6 +72,7 @@ export default function NewProductPage() {
         validity: "",
         storageTemperature: "",
         yield: "",
+        cookingTime: "",
       },
     },
   });
@@ -511,6 +512,22 @@ export default function NewProductPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Rendimento</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: 4 porções, 10 fatias"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="details.cookingTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tempo para preparo</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Ex: 4 porções, 10 fatias"

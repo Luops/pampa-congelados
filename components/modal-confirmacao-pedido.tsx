@@ -78,9 +78,12 @@ export default function ModalConfirmacaoPedido({
 
   const calcularTaxaEntrega = () => {
     // Taxa fixa de R$ 5,00 - pode ser dinâmica baseada no endereço
+    // Se o tipo de entrega for retirada, a taxa é 0
+    if (dadosCliente.tipoEntrega === "retirada") {
+      return 0;
+    }
     return state.total >= 50 ? 0 : 5;
   };
-
   const totalComEntrega = state.total + calcularTaxaEntrega();
 
   const validarDados = (): boolean => {
@@ -92,12 +95,31 @@ export default function ModalConfirmacaoPedido({
 
     if (!dadosCliente.telefone.trim()) {
       novosErrors.telefone = "Telefone é obrigatório";
-    } else if (!/^$$\d{2}$$\s\d{4,5}-\d{4}$/.test(dadosCliente.telefone)) {
-      novosErrors.telefone = "Formato: (13) 99999-9999";
+    } else {
+      // Regex para (DD) 9XXXX-XXXX ou (DD) XXXX-XXXX
+      // Permite o '9' inicial opcional para celulares.
+      // O '9' é obrigatório se o número tiver 11 dígitos, opcional se tiver 10.
+      const telefoneNumeros = dadosCliente.telefone.replace(/\D/g, "");
+      if (telefoneNumeros.length < 10 || telefoneNumeros.length > 11) {
+        novosErrors.telefone =
+          "Telefone deve ter 10 ou 11 dígitos (DDD + número)";
+      } else if (telefoneNumeros.length === 11 && telefoneNumeros[2] !== "9") {
+        // Se tem 11 dígitos, o terceiro dígito (após o DDD) deve ser '9'
+        novosErrors.telefone =
+          "Celular com 11 dígitos deve começar com 9 (ex: (DD) 9XXXX-XXXX)";
+      }
     }
 
     if (!dadosCliente.endereco.trim()) {
       novosErrors.endereco = "Endereço é obrigatório";
+    }
+
+    // Validação de endereço apenas se for entrega
+    if (
+      dadosCliente.tipoEntrega === "entrega" &&
+      !dadosCliente.endereco.trim()
+    ) {
+      novosErrors.endereco = "Endereço é obrigatório para entrega";
     }
 
     if (
@@ -105,6 +127,11 @@ export default function ModalConfirmacaoPedido({
       !dadosCliente.troco.trim()
     ) {
       novosErrors.troco = "Informe o valor para troco";
+    } else if (
+      dadosCliente.formaPagamento === "dinheiro" &&
+      parseFloat(dadosCliente.troco.replace(",", ".")) < totalComEntrega
+    ) {
+      novosErrors.troco = "O troco deve ser maior ou igual ao total do pedido.";
     }
 
     setErrors(novosErrors);
@@ -112,11 +139,32 @@ export default function ModalConfirmacaoPedido({
   };
 
   const formatarTelefone = (valor: string) => {
-    const numeros = valor.replace(/\D/g, "");
-    if (numeros.length <= 11) {
-      return numeros.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3");
+    const numeros = valor.replace(/\D/g, ""); // Remove tudo que não é dígito
+
+    if (numeros.length <= 2) {
+      return numeros; // Se tiver 2 ou menos dígitos, retorna como está (ex: "11")
     }
-    return valor;
+    if (numeros.length <= 6) {
+      return `(${numeros.substring(0, 2)}) ${numeros.substring(2)}`; // Ex: (11) 9999
+    }
+    if (numeros.length <= 10) {
+      // Para números de 8 dígitos (sem o 9 inicial)
+      return `(${numeros.substring(0, 2)}) ${numeros.substring(
+        2,
+        6
+      )}-${numeros.substring(6)}`; // Ex: (11) 9999-9999
+    }
+    if (numeros.length <= 11) {
+      // Para números de 9 dígitos (com o 9 inicial)
+      return `(${numeros.substring(0, 2)}) ${numeros.substring(
+        2,
+        7
+      )}-${numeros.substring(7)}`; // Ex: (11) 99999-9999
+    }
+    return `(${numeros.substring(0, 2)}) ${numeros.substring(
+      2,
+      7
+    )}-${numeros.substring(7, 11)}`; // Limita a 11 dígitos
   };
 
   const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,9 +185,21 @@ export default function ModalConfirmacaoPedido({
     mensagem += "👤 *DADOS DO CLIENTE*\n";
     mensagem += `Nome: ${dadosCliente.nome}\n`;
     mensagem += `Telefone: ${dadosCliente.telefone}\n`;
-    mensagem += `Endereço: ${dadosCliente.endereco}\n`;
-    if (dadosCliente.complemento) {
-      mensagem += `Complemento: ${dadosCliente.complemento}\n`;
+
+    // Tipo de Entrega
+    mensagem += `Tipo de Entrega: ${
+      dadosCliente.tipoEntrega === "entrega"
+        ? "Entrega 🚚"
+        : "Retirada no Local 🏠"
+    }\n`;
+
+    if (dadosCliente.tipoEntrega === "entrega") {
+      mensagem += `Endereço: ${dadosCliente.endereco}\n`;
+      if (dadosCliente.complemento) {
+        mensagem += `Complemento: ${dadosCliente.complemento}\n`;
+      }
+    } else {
+      mensagem += `Local de Retirada: Rua Exemplo, 123 - Centro\n`; // Adicione aqui o endereço fixo da loja para retirada
     }
     mensagem += "\n";
 
@@ -159,8 +219,11 @@ export default function ModalConfirmacaoPedido({
     const taxaEntrega = calcularTaxaEntrega();
     if (taxaEntrega > 0) {
       mensagem += `Taxa de entrega: ${formatarPreco(taxaEntrega)}\n`;
-    } else {
+    } else if (dadosCliente.tipoEntrega === "entrega") {
       mensagem += `Taxa de entrega: GRÁTIS ✅\n`;
+    } else {
+      // Para retirada, não mostra taxa de entrega, pois já está implícito no tipo de entrega
+      mensagem += `(Retirada no local, sem taxa de entrega)\n`;
     }
     mensagem += `*TOTAL: ${formatarPreco(totalComEntrega)}*\n\n`;
 
@@ -190,7 +253,7 @@ export default function ModalConfirmacaoPedido({
 
   const enviarPedido = () => {
     const mensagem = gerarMensagemWhatsApp();
-    const numeroWhatsApp = "5513999999999";
+    const numeroWhatsApp = "5551989386458";
     const url = `https://wa.me/${numeroWhatsApp}?text=${mensagem}`;
 
     // Abrir WhatsApp
@@ -302,7 +365,7 @@ export default function ModalConfirmacaoPedido({
                       id="telefone"
                       value={dadosCliente.telefone}
                       onChange={handleTelefoneChange}
-                      placeholder="(13) 99999-9999"
+                      placeholder="(DD) 9XXXX-XXXX"
                       maxLength={15}
                       className={`${
                         errors.telefone ? "border-red-500" : ""
@@ -483,7 +546,11 @@ export default function ModalConfirmacaoPedido({
                         }))
                       }
                       placeholder="Ex: 50,00"
-                      className={`{errors.troco ? "border-red-500" : ""} focus:!ring-0`}
+                      className={`${
+                        errors.troco ? "border-red-500" : ""
+                      } focus:!ring-0`}
+                      type="number" // Garante que apenas números sejam digitados
+                      step="0.01" // Permite centavos
                     />
                     {errors.troco && (
                       <p className="text-red-500 text-xs mt-1">
@@ -549,11 +616,27 @@ export default function ModalConfirmacaoPedido({
                     <strong>Telefone:</strong> {dadosCliente.telefone}
                   </p>
                   <p>
-                    <strong>Endereço:</strong> {dadosCliente.endereco}
+                    <strong>Tipo de Entrega:</strong>{" "}
+                    {dadosCliente.tipoEntrega === "entrega"
+                      ? "Entrega"
+                      : "Retirada no Local"}
                   </p>
-                  {dadosCliente.complemento && (
+                  {dadosCliente.tipoEntrega === "entrega" ? (
+                    <>
+                      <p>
+                        <strong>Endereço:</strong> {dadosCliente.endereco}
+                      </p>
+                      {dadosCliente.complemento && (
+                        <p>
+                          <strong>Complemento:</strong>{" "}
+                          {dadosCliente.complemento}
+                        </p>
+                      )}
+                    </>
+                  ) : (
                     <p>
-                      <strong>Complemento:</strong> {dadosCliente.complemento}
+                      <strong>Local de Retirada:</strong> Rua Exemplo, 123 -
+                      Centro
                     </p>
                   )}
                   <p>
@@ -637,7 +720,9 @@ export default function ModalConfirmacaoPedido({
                           : ""
                       }
                     >
-                      {calcularTaxaEntrega() === 0
+                      {dadosCliente.tipoEntrega === "retirada"
+                        ? "N/A (Retirada)"
+                        : calcularTaxaEntrega() === 0
                         ? "GRÁTIS"
                         : formatarPreco(calcularTaxaEntrega())}
                     </span>
@@ -656,7 +741,12 @@ export default function ModalConfirmacaoPedido({
               <div className="flex items-center gap-2 text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg">
                 <Clock className="h-4 w-4" />
                 <span>
-                  Tempo estimado de entrega: <strong>30-45 minutos</strong>
+                  Tempo estimado de entrega:{" "}
+                  <strong>
+                    {dadosCliente.tipoEntrega === "entrega"
+                      ? "30-45 minutos"
+                      : "Aguarde confirmação para retirada"}
+                  </strong>
                 </span>
               </div>
             </div>
