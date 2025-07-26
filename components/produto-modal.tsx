@@ -168,7 +168,9 @@ export default function ProdutoModal({
 
               {/* Avaliação */}
               <div className="flex items-center gap-2 mb-4">
-                <div className="flex">{renderStars(produto.avaliacao || 0)}</div>
+                <div className="flex">
+                  {renderStars(produto.avaliacao || 0)}
+                </div>
                 <span className="text-sm text-gray-600">
                   {produto.avaliacao}/5 ({produto.totalAvaliacoes} avaliações)
                 </span>
@@ -211,9 +213,7 @@ export default function ProdutoModal({
                   >
                     <Minus className="!h-full !w-4 text-red-600" />
                   </Button>
-                  <span className="!px-0 w-fit text-center">
-                    {quantidade}
-                  </span>
+                  <span className="!px-0 w-fit text-center">{quantidade}</span>
                   <Button
                     variant="ghost"
                     onClick={incrementarQuantidade}
@@ -376,6 +376,7 @@ export default function ProdutoModal({
             </div>
           </TabsContent>
         </Tabs>
+        <Button variant={"outline"} onClick={onClose}>Voltar</Button>
       </DialogContent>
     </Dialog>
   );

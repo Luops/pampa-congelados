@@ -71,7 +71,7 @@ export default function ProductList() {
 
   return (
     <section className="container mx-auto p-4 lg:p-8 lg:pl-[280px]">
-      <h1 className="text-4xl font-bold mb-6 text-center text-blue-700 mt-14 md:mt-10 uppercase font-mono">
+      <h1 className="text-4xl font-bold mb-6 text-center mt-14 md:mt-10 uppercase ">
         Gerenciar Produtos
       </h1>
 

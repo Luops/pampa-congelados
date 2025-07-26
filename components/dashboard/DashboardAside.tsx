@@ -143,6 +143,14 @@ export function DashboardAside() {
             Cadastrar produto
           </Link>
 
+          <Link
+            href="/dashboard/fretes"
+            className="flex items-center gap-3 px-4 py-2 rounded-md text-black/70 hover:bg-blue-200 transition"
+          >
+            <FilePlus2 className="h-5 w-5" />
+            Editar fretes
+          </Link>
+
 
           <Link
             href="/dashboard/contatos"

@@ -195,7 +195,7 @@ export default function NewProductPage() {
       <main className="container max-[1023px]:mx-auto xl:mx-auto pb-16 py-6 px-4 md:p-8 max-w-3xl mt-12">
         <DashboardAside />
         <div className="w-full flex flex-col lg:ml-[40%] xl:ml-0 xl:items-center">
-          <h1 className="text-3xl md:text-4xl font-bold text-center text-blue-700 mb-6">
+          <h1 className="text-3xl md:text-4xl font-bold text-center mb-6">
             Cadastro de Produto
           </h1>
           <p className="text-center text-gray-600 mb-8">

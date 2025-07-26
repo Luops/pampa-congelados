@@ -1,8 +1,7 @@
 "use client";
 
 import type React from "react";
-
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react"; // Adicionar useCallback
 import {
   Dialog,
   DialogContent,
@@ -41,11 +40,75 @@ interface DadosCliente {
   nome: string;
   telefone: string;
   endereco: string;
+  cep: string;
+  cidade: string;
+  estado: string;
   complemento: string;
   observacoes: string;
   formaPagamento: string;
   troco: string;
   tipoEntrega: "entrega" | "retirada";
+}
+
+// Função para consultar o CEP usando a API ViaCEP (mantida)
+async function consultarCep(cep: string) {
+  const cepNumeros = cep.replace(/\D/g, "");
+  if (cepNumeros.length !== 8) {
+    return null; // CEP inválido para consulta
+  }
+
+  try {
+    const response = await fetch(
+      `https://viacep.com.br/ws/${cepNumeros}/json/`
+    );
+    const data = await response.json();
+
+    if (data.erro) {
+      return null; // CEP não encontrado pela API
+    }
+
+    return {
+      logradouro: data.logradouro,
+      bairro: data.bairro,
+      cidade: data.localidade,
+      estado: data.uf,
+    };
+  } catch (error) {
+    console.error("Erro ao consultar CEP:", error);
+    return null;
+  }
+}
+
+// Nova função para buscar a taxa de entrega da sua API
+async function buscarTaxaEntrega(
+  cidade: string,
+  estado: string
+): Promise<number | null> {
+  try {
+    const response = await fetch(
+      `/api/fretes?cidade=${encodeURIComponent(
+        cidade
+      )}&estado=${encodeURIComponent(estado)}`
+    );
+    if (!response.ok) {
+      // Se a resposta não for 2xx, tenta ler o erro
+      const errorData = await response.json();
+      console.error(
+        "Erro ao buscar taxa de entrega:",
+        errorData.error || response.statusText
+      );
+      return null;
+    }
+    const data = await response.json();
+    // Se a API retornar null (não encontrado), ou se o objeto não tiver valor_entrega
+    if (!data || data.valor_entrega === undefined) {
+      return null;
+    }
+    return data.valor_entrega;
+  } catch (error) {
+    console.error("Erro de rede ou ao processar taxa de entrega:", error);
+    return null;
+  }
 }
 
 export default function ModalConfirmacaoPedido({
@@ -60,14 +123,112 @@ export default function ModalConfirmacaoPedido({
     nome: "",
     telefone: "",
     endereco: "",
+    cep: "",
+    cidade: "",
+    estado: "",
     complemento: "",
     observacoes: "",
     formaPagamento: "dinheiro",
     troco: "",
-    tipoEntrega: "entrega", // valor padrão
+    tipoEntrega: "entrega",
   });
 
   const [errors, setErrors] = useState<Partial<DadosCliente>>({});
+  const [taxaEntregaCalculada, setTaxaEntregaCalculada] = useState<
+    number | null
+  >(null); // Pode ser null enquanto não carrega ou se não encontrar
+  const [isFetchingTaxa, setIsFetchingTaxa] = useState(false); // Novo estado para controlar o loading da taxa
+
+  // CEP de Origem (do seu negócio em Gravataí, RS)
+  const CEP_ORIGEM_NEGOCIO = "94000-000"; // Exemplo de CEP de Gravataí. Ajuste para o CEP exato do seu negócio.
+
+  // Efeito para consultar o CEP do cliente sempre que ele for alterado e o tipo de entrega for "entrega"
+  useEffect(() => {
+    const buscarDadosCep = async () => {
+      if (
+        dadosCliente.tipoEntrega === "entrega" &&
+        dadosCliente.cep.replace(/\D/g, "").length === 8
+      ) {
+        const dados = await consultarCep(dadosCliente.cep);
+        if (dados) {
+          setDadosCliente((prev) => ({
+            ...prev,
+            cidade: dados.cidade,
+            estado: dados.estado,
+            endereco:
+              prev.endereco ||
+              `${dados.logradouro}, ${dados.bairro || ""}`.trim(), // Preenche endereço se estiver vazio
+          }));
+        } else {
+          setDadosCliente((prev) => ({
+            ...prev,
+            cidade: "",
+            estado: "",
+          }));
+          toast({
+            variant: "destructive",
+            title: "CEP não encontrado ou inválido",
+            description: "Por favor, verifique o CEP digitado.",
+          });
+        }
+      } else {
+        setDadosCliente((prev) => ({ ...prev, cidade: "", estado: "" }));
+      }
+    };
+    buscarDadosCep();
+  }, [dadosCliente.cep, dadosCliente.tipoEntrega, toast]);
+
+  // Função para calcular a taxa de entrega (agora busca da API)
+  const calcularTaxaEntrega = useCallback(async () => {
+    if (dadosCliente.tipoEntrega === "retirada") {
+      setTaxaEntregaCalculada(0);
+      return;
+    }
+
+    // Se o total do carrinho for >= 200, a entrega é grátis
+    if (state.total >= 200) {
+      setTaxaEntregaCalculada(0);
+      return;
+    }
+
+    if (dadosCliente.cidade && dadosCliente.estado) {
+      setIsFetchingTaxa(true);
+      const taxa = await buscarTaxaEntrega(
+        dadosCliente.cidade,
+        dadosCliente.estado
+      );
+      setIsFetchingTaxa(false);
+
+      if (taxa !== null) {
+        setTaxaEntregaCalculada(taxa);
+      } else {
+        // Se a cidade/estado não for encontrada na sua tabela de fretes
+        setTaxaEntregaCalculada(null); // Indica que não há taxa definida
+        toast({
+          variant: "destructive",
+          title: "Entrega indisponível para esta região",
+          description:
+            "Não foi possível calcular o frete para sua cidade. Por favor, entre em contato para verificar a possibilidade de entrega.",
+        });
+      }
+    } else {
+      setTaxaEntregaCalculada(null); // Reseta se não houver cidade/estado
+    }
+  }, [
+    dadosCliente.tipoEntrega,
+    dadosCliente.cidade,
+    dadosCliente.estado,
+    state.total,
+    toast,
+  ]);
+
+  // Use useEffect para atualizar taxaEntregaCalculada sempre que as dependências mudarem
+  useEffect(() => {
+    calcularTaxaEntrega();
+  }, [calcularTaxaEntrega]); // Dependência: a própria função callback
+
+  const totalComEntrega =
+    state.total + (taxaEntregaCalculada !== null ? taxaEntregaCalculada : 0); // Usa 0 se a taxa for null
 
   const formatarPreco = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -75,16 +236,6 @@ export default function ModalConfirmacaoPedido({
       currency: "BRL",
     }).format(valor);
   };
-
-  const calcularTaxaEntrega = () => {
-    // Taxa fixa de R$ 5,00 - pode ser dinâmica baseada no endereço
-    // Se o tipo de entrega for retirada, a taxa é 0
-    if (dadosCliente.tipoEntrega === "retirada") {
-      return 0;
-    }
-    return state.total >= 50 ? 0 : 5;
-  };
-  const totalComEntrega = state.total + calcularTaxaEntrega();
 
   const validarDados = (): boolean => {
     const novosErrors: Partial<DadosCliente> = {};
@@ -96,30 +247,31 @@ export default function ModalConfirmacaoPedido({
     if (!dadosCliente.telefone.trim()) {
       novosErrors.telefone = "Telefone é obrigatório";
     } else {
-      // Regex para (DD) 9XXXX-XXXX ou (DD) XXXX-XXXX
-      // Permite o '9' inicial opcional para celulares.
-      // O '9' é obrigatório se o número tiver 11 dígitos, opcional se tiver 10.
       const telefoneNumeros = dadosCliente.telefone.replace(/\D/g, "");
       if (telefoneNumeros.length < 10 || telefoneNumeros.length > 11) {
         novosErrors.telefone =
           "Telefone deve ter 10 ou 11 dígitos (DDD + número)";
       } else if (telefoneNumeros.length === 11 && telefoneNumeros[2] !== "9") {
-        // Se tem 11 dígitos, o terceiro dígito (após o DDD) deve ser '9'
         novosErrors.telefone =
           "Celular com 11 dígitos deve começar com 9 (ex: (DD) 9XXXX-XXXX)";
       }
     }
 
-    if (!dadosCliente.endereco.trim()) {
-      novosErrors.endereco = "Endereço é obrigatório";
-    }
-
-    // Validação de endereço apenas se for entrega
-    if (
-      dadosCliente.tipoEntrega === "entrega" &&
-      !dadosCliente.endereco.trim()
-    ) {
-      novosErrors.endereco = "Endereço é obrigatório para entrega";
+    if (dadosCliente.tipoEntrega === "entrega") {
+      if (!dadosCliente.endereco.trim()) {
+        novosErrors.endereco = "Endereço é obrigatório para entrega";
+      }
+      if (!dadosCliente.cep.trim()) {
+        novosErrors.cep = "CEP é obrigatório para entrega";
+      } else if (!/^\d{5}-\d{3}$/.test(dadosCliente.cep)) {
+        novosErrors.cep = "CEP inválido. Use o formato XXXXX-XXX";
+      } else if (!dadosCliente.cidade || !dadosCliente.estado) {
+        novosErrors.cep =
+          "Não foi possível encontrar o endereço para este CEP. Verifique o CEP ou digite o endereço completo manualmente.";
+      } else if (taxaEntregaCalculada === null) {
+        novosErrors.endereco =
+          "Entrega indisponível para esta região. Por favor, verifique o CEP ou entre em contato.";
+      }
     }
 
     if (
@@ -139,37 +291,48 @@ export default function ModalConfirmacaoPedido({
   };
 
   const formatarTelefone = (valor: string) => {
-    const numeros = valor.replace(/\D/g, ""); // Remove tudo que não é dígito
+    const numeros = valor.replace(/\D/g, "");
 
     if (numeros.length <= 2) {
-      return numeros; // Se tiver 2 ou menos dígitos, retorna como está (ex: "11")
+      return numeros;
     }
     if (numeros.length <= 6) {
-      return `(${numeros.substring(0, 2)}) ${numeros.substring(2)}`; // Ex: (11) 9999
+      return `(${numeros.substring(0, 2)}) ${numeros.substring(2)}`;
     }
     if (numeros.length <= 10) {
-      // Para números de 8 dígitos (sem o 9 inicial)
       return `(${numeros.substring(0, 2)}) ${numeros.substring(
         2,
         6
-      )}-${numeros.substring(6)}`; // Ex: (11) 9999-9999
+      )}-${numeros.substring(6)}`;
     }
     if (numeros.length <= 11) {
-      // Para números de 9 dígitos (com o 9 inicial)
       return `(${numeros.substring(0, 2)}) ${numeros.substring(
         2,
         7
-      )}-${numeros.substring(7)}`; // Ex: (11) 99999-9999
+      )}-${numeros.substring(7)}`;
     }
     return `(${numeros.substring(0, 2)}) ${numeros.substring(
       2,
       7
-    )}-${numeros.substring(7, 11)}`; // Limita a 11 dígitos
+    )}-${numeros.substring(7, 11)}`;
   };
 
   const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valorFormatado = formatarTelefone(e.target.value);
     setDadosCliente((prev) => ({ ...prev, telefone: valorFormatado }));
+  };
+
+  const formatarCep = (valor: string) => {
+    const numeros = valor.replace(/\D/g, "");
+    if (numeros.length > 5) {
+      return `${numeros.substring(0, 5)}-${numeros.substring(5, 8)}`;
+    }
+    return numeros;
+  };
+
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorFormatado = formatarCep(e.target.value);
+    setDadosCliente((prev) => ({ ...prev, cep: valorFormatado }));
   };
 
   const handleProximaEtapa = () => {
@@ -181,12 +344,10 @@ export default function ModalConfirmacaoPedido({
   const gerarMensagemWhatsApp = () => {
     let mensagem = "🛒 *NOVO PEDIDO - FREEZEFOOD*\n\n";
 
-    // Dados do cliente
     mensagem += "👤 *DADOS DO CLIENTE*\n";
     mensagem += `Nome: ${dadosCliente.nome}\n`;
     mensagem += `Telefone: ${dadosCliente.telefone}\n`;
 
-    // Tipo de Entrega
     mensagem += `Tipo de Entrega: ${
       dadosCliente.tipoEntrega === "entrega"
         ? "Entrega 🚚"
@@ -195,15 +356,18 @@ export default function ModalConfirmacaoPedido({
 
     if (dadosCliente.tipoEntrega === "entrega") {
       mensagem += `Endereço: ${dadosCliente.endereco}\n`;
+      mensagem += `CEP: ${dadosCliente.cep}\n`;
+      if (dadosCliente.cidade) {
+        mensagem += `Cidade: ${dadosCliente.cidade} - ${dadosCliente.estado}\n`;
+      }
       if (dadosCliente.complemento) {
         mensagem += `Complemento: ${dadosCliente.complemento}\n`;
       }
     } else {
-      mensagem += `Local de Retirada: Rua Exemplo, 123 - Centro\n`; // Adicione aqui o endereço fixo da loja para retirada
+      mensagem += `Local de Retirada: Rua Exemplo, 123 - Centro (CEP: ${CEP_ORIGEM_NEGOCIO})\n`;
     }
     mensagem += "\n";
 
-    // Itens do pedido
     mensagem += "📦 *ITENS DO PEDIDO*\n";
     state.itens.forEach((item, index) => {
       mensagem += `${index + 1}. ${item.quantidade}x ${item.nome}\n`;
@@ -213,21 +377,21 @@ export default function ModalConfirmacaoPedido({
     });
     mensagem += "\n";
 
-    // Resumo financeiro
     mensagem += "💰 *RESUMO FINANCEIRO*\n";
     mensagem += `Subtotal: ${formatarPreco(state.total)}\n`;
-    const taxaEntrega = calcularTaxaEntrega();
-    if (taxaEntrega > 0) {
-      mensagem += `Taxa de entrega: ${formatarPreco(taxaEntrega)}\n`;
-    } else if (dadosCliente.tipoEntrega === "entrega") {
-      mensagem += `Taxa de entrega: GRÁTIS ✅\n`;
+    const taxaEntrega =
+      taxaEntregaCalculada !== null ? taxaEntregaCalculada : 0;
+    if (dadosCliente.tipoEntrega === "entrega") {
+      if (taxaEntrega > 0) {
+        mensagem += `Taxa de entrega: ${formatarPreco(taxaEntrega)}\n`;
+      } else {
+        mensagem += `Taxa de entrega: GRÁTIS ✅\n`;
+      }
     } else {
-      // Para retirada, não mostra taxa de entrega, pois já está implícito no tipo de entrega
       mensagem += `(Retirada no local, sem taxa de entrega)\n`;
     }
     mensagem += `*TOTAL: ${formatarPreco(totalComEntrega)}*\n\n`;
 
-    // Forma de pagamento
     mensagem += "💳 *PAGAMENTO*\n";
     if (dadosCliente.formaPagamento === "dinheiro") {
       mensagem += `Forma: Dinheiro 💵\n`;
@@ -239,7 +403,6 @@ export default function ModalConfirmacaoPedido({
     }
     mensagem += "\n";
 
-    // Observações
     if (dadosCliente.observacoes) {
       mensagem += "📝 *OBSERVAÇÕES*\n";
       mensagem += `${dadosCliente.observacoes}\n\n`;
@@ -256,14 +419,11 @@ export default function ModalConfirmacaoPedido({
     const numeroWhatsApp = "5551989386458";
     const url = `https://wa.me/${numeroWhatsApp}?text=${mensagem}`;
 
-    // Abrir WhatsApp
     window.open(url, "_blank");
 
-    // Limpar carrinho e fechar modal
     limparCarrinho();
     onClose();
 
-    // Toast de sucesso
     toast({
       variant: "success",
       title: (
@@ -283,6 +443,9 @@ export default function ModalConfirmacaoPedido({
       nome: "",
       telefone: "",
       endereco: "",
+      cep: "",
+      cidade: "",
+      estado: "",
       complemento: "",
       observacoes: "",
       formaPagamento: "dinheiro",
@@ -290,6 +453,7 @@ export default function ModalConfirmacaoPedido({
       tipoEntrega: "entrega",
     });
     setErrors({});
+    setTaxaEntregaCalculada(null); // Limpar a taxa calculada ao fechar
     onClose();
   };
 
@@ -321,9 +485,16 @@ export default function ModalConfirmacaoPedido({
                   </div>
                   {dadosCliente.tipoEntrega === "entrega" && (
                     <Badge variant="secondary">
-                      {calcularTaxaEntrega() === 0
+                      {isFetchingTaxa
+                        ? "Calculando..."
+                        : dadosCliente.cep.replace(/\D/g, "").length > 0 &&
+                          (!dadosCliente.cidade || !dadosCliente.estado)
+                        ? "Entrega Indisponível"
+                        : taxaEntregaCalculada === 0
                         ? "Entrega Grátis"
-                        : `+${formatarPreco(calcularTaxaEntrega())} entrega`}
+                        : taxaEntregaCalculada !== null
+                        ? `+${formatarPreco(taxaEntregaCalculada)} entrega`
+                        : "Calculamos a taxa de entrega"}
                     </Badge>
                   )}
                 </div>
@@ -395,12 +566,12 @@ export default function ModalConfirmacaoPedido({
                         ? "default"
                         : "outline"
                     }
-                    onClick={() =>
+                    onClick={() => {
                       setDadosCliente((prev) => ({
                         ...prev,
                         tipoEntrega: "entrega",
-                      }))
-                    }
+                      }));
+                    }}
                     className="h-12"
                   >
                     🚚 Entrega com taxa
@@ -412,12 +583,17 @@ export default function ModalConfirmacaoPedido({
                         ? "default"
                         : "outline"
                     }
-                    onClick={() =>
+                    onClick={() => {
                       setDadosCliente((prev) => ({
                         ...prev,
                         tipoEntrega: "retirada",
-                      }))
-                    }
+                        cep: "",
+                        endereco: "",
+                        complemento: "",
+                        cidade: "",
+                        estado: "",
+                      }));
+                    }}
                     className="h-12"
                   >
                     🏠 Retirada no local
@@ -429,7 +605,41 @@ export default function ModalConfirmacaoPedido({
               {dadosCliente.tipoEntrega === "entrega" ? (
                 <>
                   <div>
-                    <Label htmlFor="endereco">Endereço Completo *</Label>
+                    <Label htmlFor="cep">CEP *</Label>
+                    <Input
+                      id="cep"
+                      value={dadosCliente.cep}
+                      onChange={handleCepChange}
+                      placeholder="94900-000"
+                      maxLength={9}
+                      className={`${
+                        errors.cep ? "border-red-500" : ""
+                      } focus:!ring-0`}
+                    />
+                    {errors.cep && (
+                      <p className="text-red-500 text-xs mt-1">{errors.cep}</p>
+                    )}
+                    {dadosCliente.cidade && dadosCliente.estado && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Cidade: {dadosCliente.cidade} - {dadosCliente.estado}
+                      </p>
+                    )}
+                    {isFetchingTaxa &&
+                      dadosCliente.cep.replace(/\D/g, "").length === 8 && (
+                        <p className="text-xs text-blue-500 mt-1">
+                          Calculando taxa de entrega...
+                        </p>
+                      )}
+                    {!isFetchingTaxa &&
+                      taxaEntregaCalculada === null &&
+                      dadosCliente.cidade && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Não foi possível calcular o frete para esta cidade.
+                        </p>
+                      )}
+                  </div>
+                  <div>
+                    <Label htmlFor="endereco">Endereço *</Label>
                     <Input
                       id="endereco"
                       value={dadosCliente.endereco}
@@ -439,7 +649,7 @@ export default function ModalConfirmacaoPedido({
                           endereco: e.target.value,
                         }))
                       }
-                      placeholder="Rua, número, bairro, cidade"
+                      placeholder="Rua Alvorada, 123"
                       className={`${
                         errors.endereco ? "border-red-500" : ""
                       } focus:!ring-0`}
@@ -468,7 +678,8 @@ export default function ModalConfirmacaoPedido({
                 </>
               ) : (
                 <p className="text-sm text-gray-600">
-                  Retirada no local: Rua Exemplo, 123 - Centro
+                  Retirada no local: Rua Exemplo, 123 - Centro (CEP:{" "}
+                  {CEP_ORIGEM_NEGOCIO})
                 </p>
               )}
 
@@ -549,8 +760,8 @@ export default function ModalConfirmacaoPedido({
                       className={`${
                         errors.troco ? "border-red-500" : ""
                       } focus:!ring-0`}
-                      type="number" // Garante que apenas números sejam digitados
-                      step="0.01" // Permite centavos
+                      type="number"
+                      step="0.01"
                     />
                     {errors.troco && (
                       <p className="text-red-500 text-xs mt-1">
@@ -622,21 +833,30 @@ export default function ModalConfirmacaoPedido({
                       : "Retirada no Local"}
                   </p>
                   {dadosCliente.tipoEntrega === "entrega" ? (
-                    <>
-                      <p>
+                    <div className="flex flex-col">
+                      <span>
                         <strong>Endereço:</strong> {dadosCliente.endereco}
-                      </p>
+                      </span>
+                      <span>
+                        <strong>CEP:</strong> {dadosCliente.cep}
+                      </span>
+                      {dadosCliente.cidade && dadosCliente.estado && (
+                        <span>
+                          <strong>Cidade:</strong> {dadosCliente.cidade} -{" "}
+                          {dadosCliente.estado}
+                        </span>
+                      )}
                       {dadosCliente.complemento && (
-                        <p>
+                        <span>
                           <strong>Complemento:</strong>{" "}
                           {dadosCliente.complemento}
-                        </p>
+                        </span>
                       )}
-                    </>
+                    </div>
                   ) : (
                     <p>
                       <strong>Local de Retirada:</strong> Rua Exemplo, 123 -
-                      Centro
+                      Centro (CEP: {CEP_ORIGEM_NEGOCIO})
                     </p>
                   )}
                   <p>
@@ -712,71 +932,68 @@ export default function ModalConfirmacaoPedido({
                     <span>{formatarPreco(state.total)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Taxa de entrega</span>
-                    <span
-                      className={
-                        calcularTaxaEntrega() === 0
-                          ? "text-green-600 font-medium"
-                          : ""
-                      }
-                    >
-                      {dadosCliente.tipoEntrega === "retirada"
-                        ? "N/A (Retirada)"
-                        : calcularTaxaEntrega() === 0
+                    <span>Taxa de Entrega:</span>
+                    <span>
+                      {isFetchingTaxa
+                        ? "Calculando..."
+                        : taxaEntregaCalculada === 0
                         ? "GRÁTIS"
-                        : formatarPreco(calcularTaxaEntrega())}
+                        : taxaEntregaCalculada !== null
+                        ? formatarPreco(taxaEntregaCalculada)
+                        : "Indisponível"}
                     </span>
                   </div>
-                  <Separator />
-                  <div className="flex justify-between font-semibold text-lg">
-                    <span>Total</span>
-                    <span className="text-blue-600">
-                      {formatarPreco(totalComEntrega)}
-                    </span>
+                  <Separator className="my-2" />
+                  <div className="flex justify-between font-bold text-lg text-blue-700">
+                    <span>Total:</span>
+                    <span>{formatarPreco(totalComEntrega)}</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Tempo de Entrega */}
-              <div className="flex items-center gap-2 text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg">
-                <Clock className="h-4 w-4" />
-                <span>
-                  Tempo estimado de entrega:{" "}
-                  <strong>
-                    {dadosCliente.tipoEntrega === "entrega"
-                      ? "30-45 minutos"
-                      : "Aguarde confirmação para retirada"}
-                  </strong>
-                </span>
               </div>
             </div>
           </ScrollArea>
         )}
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2 pt-4">
           {etapa === "dados" ? (
             <>
-              <Button variant="outline" onClick={handleClose}>
-                Cancelar
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                className="w-full sm:w-auto"
+              >
+                Voltar ao Carrinho
               </Button>
               <Button
+                type="button"
                 onClick={handleProximaEtapa}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="w-full sm:w-auto"
+                disabled={
+                  isFetchingTaxa ||
+                  (dadosCliente.tipoEntrega === "entrega" &&
+                    taxaEntregaCalculada === null)
+                }
               >
-                Continuar
+                Próxima Etapa
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => setEtapa("dados")}>
-                Voltar
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEtapa("dados")}
+                className="w-full sm:w-auto"
+              >
+                Editar Dados
               </Button>
               <Button
+                type="button"
                 onClick={enviarPedido}
-                className="bg-green-600 hover:bg-green-700"
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
               >
-                <Phone className="h-4 w-4 mr-2" />
-                Enviar Pedido
+                Enviar Pedido via WhatsApp
               </Button>
             </>
           )}
