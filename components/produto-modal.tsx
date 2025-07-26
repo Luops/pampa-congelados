@@ -114,22 +114,22 @@ export default function ProdutoModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[98vw] max-w-xl max-h-[90vh] flex flex-col items-center overflow-y-auto px-2 sm:px-5 pb-14">
+      <DialogContent className="!w-full sm:w-[98vw] max-w-xl max-h-[90vh] flex flex-col items-center overflow-y-auto px-2 sm:px-5 pb-14">
         <DialogHeader>
           <DialogTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-center">
             {produto.nome}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 w-full">
+        <div className="space-y-4 !w-full">
           {/* Galeria de Imagens */}
-          <div className="space-y-4 w-full flex flex-col">
-            <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 max-h-[300px]">
+          <div className="space-y-4 !w-full flex flex-col">
+            <div className="!w-full relative aspect-square rounded-lg overflow-hidden bg-gray-100 max-h-[300px]">
               <Image
                 src={imagens[imagemAtual] || "/placeholder.svg"}
                 alt={produto.nome}
                 fill
-                className="w-full object-cover"
+                className="!w-full object-cover"
               />
               <Badge className="absolute top-2 left-2 bg-blue-600">
                 {produto.categoria}
