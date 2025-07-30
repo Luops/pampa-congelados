@@ -28,6 +28,8 @@ import {
   MessageCircle,
   Loader2,
   PackageX,
+  Check, // Adicionado para o Combobox
+  ChevronsUpDown, // Adicionado para o Combobox
 } from "lucide-react";
 import { DashboardAside } from "../../../../../../components/dashboard/DashboardAside";
 import { useParams } from "next/navigation";
@@ -39,6 +41,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList, // Adicionado para o Combobox
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // Define a interface para as props da página, incluindo o ID
 interface ProductPageProps {
@@ -46,6 +61,14 @@ interface ProductPageProps {
     id: string;
   };
 }
+
+// Define a interface para as categorias
+interface Category {
+  id: string; // Ou number, dependendo do seu backend
+  name: string;
+}
+
+import { cn } from "@/lib/utils"; // Certifique-se de que este caminho está correto para sua utilidade cn
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -59,6 +82,12 @@ export default function EditProductPage() {
   const [editSuccess, setEditSuccess] = useState(false);
 
   const [productNotFound, setProductNotFound] = useState(false);
+
+  // New states for categories
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [openCategoryCombobox, setOpenCategoryCombobox] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState(""); // State for new category input
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -86,6 +115,7 @@ export default function EditProductPage() {
         cookingTime: "",
       },
       imageFile: undefined,
+      category: "",
     },
   });
 
@@ -151,6 +181,7 @@ export default function EditProductPage() {
           nutritionalInfo: nutritionalInfo,
           details: details,
           imageFile: undefined,
+          category: productData.category,
         };
 
         form.reset(formattedData); // Preenche o formulário com os dados
@@ -167,6 +198,27 @@ export default function EditProductPage() {
     fetchProduct();
   }, [id, form]);
 
+  // Fetch categories on component mount
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        setLoadingCategories(true);
+        const res = await fetch("/api/categories"); // Sua rota para buscar categorias
+        if (!res.ok) {
+          throw new Error("Failed to fetch categories");
+        }
+        const data: Category[] = await res.json();
+        setCategories(data);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        toast.error("Erro ao carregar categorias.");
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+    fetchCategories();
+  }, []); // Empty dependency array means this runs once on mount
+
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -176,6 +228,48 @@ export default function EditProductPage() {
     } else {
       form.setValue("imageFile", undefined);
       setImagePreviewUrl(null);
+    }
+  };
+
+  // Function to handle creating a new category
+  const handleCreateNewCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error("O nome da nova categoria não pode ser vazio.");
+      return;
+    }
+
+    setIsSubmittingForm(true); // Disable form submission while adding category
+    try {
+      toast.info(`Criando nova categoria: "${newCategoryName}"...`, {
+        duration: 3000,
+      });
+      const res = await fetch("/api/categories/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCategoryName }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Falha ao criar nova categoria.");
+      }
+
+      const newCategory: Category = data.category; // Assuming your API returns the created category
+      setCategories((prev) => [...prev, newCategory]);
+      form.setValue("category", newCategory.name); // Set the new category in the form
+      toast.success(`Categoria "${newCategory.name}" criada e selecionada!`);
+      setNewCategoryName(""); // Clear the new category input
+      setOpenCategoryCombobox(false); // Close the combobox
+    } catch (error: any) {
+      console.error("Error creating new category:", error);
+      toast.error(
+        `Erro ao criar categoria: ${
+          error.message || "Ocorreu um erro inesperado."
+        }`
+      );
+    } finally {
+      setIsSubmittingForm(false); // Re-enable form submission
     }
   };
 
@@ -218,6 +312,7 @@ export default function EditProductPage() {
         preparation: values.preparation,
         nutritional_info: JSON.stringify(values.nutritionalInfo),
         details: JSON.stringify(values.details),
+        category: values.category,
       };
 
       // 3. Enviar os dados do produto para o backend (agora é PATCH)
@@ -367,6 +462,103 @@ export default function EditProductPage() {
                     )}
                   />
                 </div>
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col mt-4">
+                      <FormLabel>Categoria</FormLabel>
+                      <Popover
+                        open={openCategoryCombobox}
+                        onOpenChange={setOpenCategoryCombobox}
+                      >
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-[200px] justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              disabled={loadingCategories || isSubmittingForm}
+                            >
+                              {field.value
+                                ? categories.find(
+                                    (category) => category.name === field.value
+                                  )?.name
+                                : loadingCategories
+                                ? "Carregando categorias..."
+                                : "Selecione a categoria"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0">
+                          <Command>
+                            <CommandInput
+                              placeholder="Buscar categoria ou adicionar nova..."
+                              value={newCategoryName} // Bind to new state for new category input
+                              onValueChange={(currentValue) =>
+                                setNewCategoryName(currentValue)
+                              } // Update new category name
+                            />
+                            <CommandList>
+                              <CommandEmpty>
+                                <div className="text-center p-2">
+                                  Nenhuma categoria encontrada.
+                                </div>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {categories.map((category) => (
+                                  <CommandItem
+                                    value={category.name}
+                                    key={category.id}
+                                    onSelect={() => {
+                                      form.setValue("category", category.name);
+                                      setOpenCategoryCombobox(false);
+                                      setNewCategoryName(""); // Clear new category input when selecting existing
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        category.name === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {category.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                              {newCategoryName.trim() &&
+                                !categories.some(
+                                  (cat) =>
+                                    cat.name.toLowerCase() ===
+                                    newCategoryName.trim().toLowerCase()
+                                ) && (
+                                  <CommandGroup heading="Adicionar nova">
+                                    <CommandItem
+                                      onSelect={handleCreateNewCategory}
+                                      className="text-blue-600 cursor-pointer flex items-center"
+                                    >
+                                      <span className="mr-2">+</span> Adicionar
+                                      "{newCategoryName}"
+                                      {isSubmittingForm && (
+                                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                                      )}
+                                    </CommandItem>
+                                  </CommandGroup>
+                                )}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="description"
@@ -630,12 +822,9 @@ export default function EditProductPage() {
                     name="details.cookingTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Rendimento</FormLabel>
+                        <FormLabel>Preparo</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Ex: 4 porções, 10 fatias"
-                            {...field}
-                          />
+                          <Input placeholder="Ex: Em até 10min." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

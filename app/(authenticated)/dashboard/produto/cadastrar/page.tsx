@@ -1,7 +1,6 @@
-// src/app/dashboard/products/new/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,32 +28,58 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { DashboardAside } from "../../../../../components/dashboard/DashboardAside";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList, // Adicionado para o Combobox
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Package,
   ShoppingCart,
   Info,
   Snowflake,
   MessageCircle,
-  Loader2, // Importe Loader2 para o ícone de loading
+  Loader2,
+  Check, // Adicionado para o Combobox
+  ChevronsUpDown, // Adicionado para o Combobox
 } from "lucide-react";
 
-// Components
-import { DashboardAside } from "../../../../../components/dashboard/DashboardAside";
+import { cn } from "@/lib/utils"; // Certifique-se de que este caminho está correto para sua utilidade cn
+
+// Define a interface para as categorias
+interface Category {
+  id: string; // Ou number, dependendo do seu backend
+  name: string;
+}
 
 export default function NewProductPage() {
   const router = useRouter();
 
-  const [isSubmittingForm, setIsSubmittingForm] = useState(false); // Novo estado para o loading geral do formulário
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-
   const [createSuccess, setCreateSuccess] = useState(false);
+
+  // New states for categories
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [openCategoryCombobox, setOpenCategoryCombobox] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState(""); // State for new category input
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       productName: "",
-      // image: "", // Removido, pois agora é handled por imageFile
       description: "",
+      category: "",
       reviews: { quantityStarsByPerson: 0, quantityReviews: 0 },
       price: 0.0,
       promoPrice: undefined,
@@ -77,16 +102,79 @@ export default function NewProductPage() {
     },
   });
 
-  // Função para lidar com a mudança do arquivo de imagem
+  // Fetch categories on component mount
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        setLoadingCategories(true);
+        const res = await fetch("/api/categories"); // Sua rota para buscar categorias
+        if (!res.ok) {
+          throw new Error("Failed to fetch categories");
+        }
+        const data: Category[] = await res.json();
+        setCategories(data);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        toast.error("Erro ao carregar categorias.");
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+    fetchCategories();
+  }, []); // Empty dependency array means this runs once on mount
+
+  // Function to handle image file change
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      form.setValue("imageFile", selectedFile); // Define o arquivo no campo do formulário
-      setImagePreviewUrl(URL.createObjectURL(selectedFile)); // Cria URL para pré-visualização
-      form.clearErrors("imageFile"); // Limpa qualquer erro anterior
+      form.setValue("imageFile", selectedFile);
+      setImagePreviewUrl(URL.createObjectURL(selectedFile));
+      form.clearErrors("imageFile");
     } else {
-      form.setValue("imageFile", undefined); // Limpa o valor se nenhum arquivo for selecionado
+      form.setValue("imageFile", undefined);
       setImagePreviewUrl(null);
+    }
+  };
+
+  // Function to handle creating a new category
+  const handleCreateNewCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error("O nome da nova categoria não pode ser vazio.");
+      return;
+    }
+
+    setIsSubmittingForm(true); // Disable form submission while adding category
+    try {
+      toast.info(`Criando nova categoria: "${newCategoryName}"...`, {
+        duration: 3000,
+      });
+      const res = await fetch("/api/categories/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCategoryName }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Falha ao criar nova categoria.");
+      }
+
+      const newCategory: Category = data.category; // Assuming your API returns the created category
+      setCategories((prev) => [...prev, newCategory]);
+      form.setValue("category", newCategory.name); // Set the new category in the form
+      toast.success(`Categoria "${newCategory.name}" criada e selecionada!`);
+      setNewCategoryName(""); // Clear the new category input
+      setOpenCategoryCombobox(false); // Close the combobox
+    } catch (error: any) {
+      console.error("Error creating new category:", error);
+      toast.error(
+        `Erro ao criar categoria: ${
+          error.message || "Ocorreu um erro inesperado."
+        }`
+      );
+    } finally {
+      setIsSubmittingForm(false); // Re-enable form submission
     }
   };
 
@@ -114,20 +202,19 @@ export default function NewProductPage() {
         imageUrl = data.imageUrl;
         toast.success("Imagem enviada com sucesso!");
       } else {
-        // Se a imagem for opcional e não for fornecida, pode definir uma URL padrão ou lançar um erro
-        // Depende da sua regra de negócio
         toast.error("É necessário selecionar uma imagem para o produto.");
         setIsSubmittingForm(false);
         return;
       }
 
-      // 2. Preparar os dados do produto com a URL da imagem
+      // 2. Prepare product data with image URL and category
       const productDataForAPI = {
         product_name: values.productName,
-        image_url: imageUrl, // Usamos a URL obtida do upload
+        image_url: imageUrl,
         description: values.description,
-        reviews_stars_by_person: values.reviews?.quantityStarsByPerson || 0, // Adicionado optional chaining
-        reviews_count: values.reviews?.quantityReviews || 0, // Adicionado optional chaining
+        category: values.category, // Use the category from the form state
+        reviews_stars_by_person: values.reviews?.quantityStarsByPerson || 0,
+        reviews_count: values.reviews?.quantityReviews || 0,
         price: values.price,
         promo_price: values.promoPrice,
         stock_quantity: values.quantityStock,
@@ -140,7 +227,6 @@ export default function NewProductPage() {
       // 3. Enviar os dados do produto para o backend
       toast.info("Cadastrando produto...", { duration: 2000 });
       const productRes = await fetch("/api/products/create", {
-        // Substitua por sua rota de API
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(productDataForAPI),
@@ -234,7 +320,7 @@ export default function NewProductPage() {
                   {/* Campo para Upload de Imagem */}
                   <FormField
                     control={form.control}
-                    name="imageFile" // Usamos imageFile para o input do tipo "file"
+                    name="imageFile"
                     render={({ field: { value, onChange, ...fieldProps } }) => (
                       <FormItem>
                         <FormLabel>Imagem do Produto</FormLabel>
@@ -243,7 +329,7 @@ export default function NewProductPage() {
                             {...fieldProps}
                             type="file"
                             accept="image/*"
-                            onChange={handleImageFileChange} // Usamos nosso próprio handler
+                            onChange={handleImageFileChange}
                             className="file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:border-0 file:rounded-md file:py-2 file:px-4 file:mr-4"
                           />
                         </FormControl>
@@ -264,6 +350,104 @@ export default function NewProductPage() {
                     )}
                   />
                 </div>
+                {/* Campo de Categoria com Combobox */}
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col mt-4">
+                      <FormLabel>Categoria</FormLabel>
+                      <Popover
+                        open={openCategoryCombobox}
+                        onOpenChange={setOpenCategoryCombobox}
+                      >
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-[200px] justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              disabled={loadingCategories || isSubmittingForm}
+                            >
+                              {field.value
+                                ? categories.find(
+                                    (category) => category.name === field.value
+                                  )?.name
+                                : loadingCategories
+                                ? "Carregando categorias..."
+                                : "Selecione a categoria"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0">
+                          <Command>
+                            <CommandInput
+                              placeholder="Buscar categoria ou adicionar nova..."
+                              value={newCategoryName} // Bind to new state for new category input
+                              onValueChange={(currentValue) =>
+                                setNewCategoryName(currentValue)
+                              } // Update new category name
+                            />
+                            <CommandList>
+                              <CommandEmpty>
+                                <div className="text-center p-2">
+                                  Nenhuma categoria encontrada.
+                                </div>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {categories.map((category) => (
+                                  <CommandItem
+                                    value={category.name}
+                                    key={category.id}
+                                    onSelect={() => {
+                                      form.setValue("category", category.name);
+                                      setOpenCategoryCombobox(false);
+                                      setNewCategoryName(""); // Clear new category input when selecting existing
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        category.name === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {category.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                              {newCategoryName.trim() &&
+                                !categories.some(
+                                  (cat) =>
+                                    cat.name.toLowerCase() ===
+                                    newCategoryName.trim().toLowerCase()
+                                ) && (
+                                  <CommandGroup heading="Adicionar nova">
+                                    <CommandItem
+                                      onSelect={handleCreateNewCategory}
+                                      className="text-blue-600 cursor-pointer flex items-center"
+                                    >
+                                      <span className="mr-2">+</span> Adicionar
+                                      "{newCategoryName}"
+                                      {isSubmittingForm && (
+                                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                                      )}
+                                    </CommandItem>
+                                  </CommandGroup>
+                                )}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="description"
@@ -299,7 +483,14 @@ export default function NewProductPage() {
                       <FormItem>
                         <FormLabel>Preço (R$)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" {...field} />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value))
+                            } // Ensure number type
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -318,6 +509,13 @@ export default function NewProductPage() {
                             placeholder="Opcional"
                             {...field}
                             value={field.value ?? ""}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value
+                                  ? parseFloat(e.target.value)
+                                  : undefined
+                              )
+                            } // Allow undefined
                           />
                         </FormControl>
                         <FormMessage />
@@ -331,7 +529,13 @@ export default function NewProductPage() {
                       <FormItem>
                         <FormLabel>Quantidade em Estoque</FormLabel>
                         <FormControl>
-                          <Input type="number" {...field} />
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseInt(e.target.value, 10))
+                            } // Ensure integer type
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -407,7 +611,14 @@ export default function NewProductPage() {
                       <FormItem>
                         <FormLabel>Calorias (kcal)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" {...field} />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value))
+                            }
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -420,7 +631,14 @@ export default function NewProductPage() {
                       <FormItem>
                         <FormLabel>Proteínas (g)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" {...field} />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value))
+                            }
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -433,7 +651,14 @@ export default function NewProductPage() {
                       <FormItem>
                         <FormLabel>Carboidratos (g)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" {...field} />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value))
+                            }
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -446,7 +671,14 @@ export default function NewProductPage() {
                       <FormItem>
                         <FormLabel>Gorduras (g)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" {...field} />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value))
+                            }
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -527,12 +759,9 @@ export default function NewProductPage() {
                     name="details.cookingTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tempo para preparo</FormLabel>
+                        <FormLabel>Preparo</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Ex: 4 porções, 10 fatias"
-                            {...field}
-                          />
+                          <Input placeholder="Ex: Em até 10min." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -544,7 +773,7 @@ export default function NewProductPage() {
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-3 flex items-center justify-center gap-2"
-                disabled={isSubmittingForm} // Desabilita o botão enquanto estiver enviando
+                disabled={isSubmittingForm}
               >
                 {isSubmittingForm && (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useCarrinho } from "@/contexts/carrinho-context";
+import { useAuth } from "@/contexts/AuthContext"; // Importe o useAuth
 
 interface ProdutoDetalhado {
   id: number;
@@ -34,23 +35,22 @@ interface ProdutoDetalhado {
   categoria: string;
   imagem: string;
   imagens?: string[];
-  ingredientes?: string[]; // Change to optional
+  ingredientes?: string[]; // Aqui está 'ingredientes'
   informacoesNutricionais?: {
-    // Change to optional
+    // Aqui está 'informacoesNutricionais'
     calorias?: string;
     proteinas?: string;
     carboidratos?: string;
     gorduras?: string;
   };
-  calorias?: string; // Change to optional
-  modoPreparo?: string[]; // Change to optional
-  tempoPreparo?: string; // Change to optional
-  porcoes?: string; // Change to optional
-  temperatura?: string; // Change to optional
-  validade?: string; // Change to optional
-  peso?: string; // Change to optional
-  avaliacao?: number; // Change to optional
-  totalAvaliacoes?: number; // Change to optional
+  modoPreparo?: string[]; // Aqui está 'modoPreparo'
+  tempoPreparo?: string;
+  porcoes?: string;
+  temperatura?: string;
+  validade?: string;
+  peso?: string;
+  avaliacao?: number;
+  totalAvaliacoes?: number;
 }
 
 interface ProdutoModalProps {
@@ -67,6 +67,11 @@ export default function ProdutoModal({
   const [imagemAtual, setImagemAtual] = useState(0);
   const [quantidade, setQuantidade] = useState(1);
   const [isFavorito, setIsFavorito] = useState(false);
+  const [userRating, setUserRating] = useState(0); // State for the user's selected rating
+  const [ratingMessage, setRatingMessage] = useState<string | null>(null); // Feedback message for rating
+
+  const { user, loading } = useAuth(); // <--- Use o hook useAuth para pegar o usuário e o status de carregamento
+  const isLoggedIn = !!user; // Deriva o status de login diretamente do `user` do AuthContext
 
   const { adicionarItem, obterQuantidadeItem } = useCarrinho();
   const quantidadeNoCarrinho = obterQuantidadeItem(produto?.id || 0);
@@ -80,13 +85,14 @@ export default function ProdutoModal({
   const decrementarQuantidade = () =>
     setQuantidade((prev) => Math.max(1, prev - 1));
 
-  const renderStars = (rating: number) => {
+  const renderStars = (rating: number, interactive: boolean = false) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`h-4 w-4 ${
+        className={`h-4 w-4 cursor-pointer ${
           i < rating ? "text-yellow-400 fill-current" : "text-gray-300"
-        }`}
+        } ${interactive ? "hover:text-yellow-500" : ""}`}
+        onClick={interactive ? () => setUserRating(i + 1) : undefined}
       />
     ));
   };
@@ -111,6 +117,105 @@ export default function ProdutoModal({
       setQuantidade(1);
     }
   };
+
+  // Descrição com a primeira letra maiúscula e após cada ponto final.
+  const formatUpperCase = (str: string): string => {
+    if (!str) {
+      return "";
+    }
+
+    // 1. Convert the entire string to lowercase first
+    let formattedStr = str.toLowerCase();
+
+    // 2. Capitalize the first letter of the entire string
+    formattedStr = formattedStr.charAt(0).toUpperCase() + formattedStr.slice(1);
+
+    // 3. Capitalize the first letter after each period followed by a space
+    formattedStr = formattedStr.replace(/(\.\s*)([a-z])/g, (match, p1, p2) => {
+      return p1 + p2.toUpperCase();
+    });
+
+    return formattedStr;
+  };
+
+  // Formata cada item de uma lista separada por ponto e vírgula
+  // A primeira letra de cada item (ou após um ';') é maiúscula, o resto minúscula.
+  const formatSemiColonList = (items: string[] | undefined): string[] => {
+    if (!items || items.length === 0) {
+      return [];
+    }
+
+    return items.map((item) => {
+      // Split by semicolon, trim each part, and then format
+      return item
+        .split(";")
+        .map((part) => {
+          const trimmedPart = part.trim();
+          if (!trimmedPart) {
+            return ""; // Return empty for empty parts
+          }
+          // Apply the same capitalization logic as formatUpperCase
+          return (
+            trimmedPart.charAt(0).toUpperCase() +
+            trimmedPart.slice(1).toLowerCase()
+          );
+        })
+        .join("; "); // Join back with semicolon and a space
+    });
+  };
+
+  // Enviar avaliação
+  const handleRatingSubmit = async () => {
+    if (loading) {
+      setRatingMessage("Verificando status de login...");
+      return;
+    }
+    if (!isLoggedIn) {
+      setRatingMessage("Você precisa estar logado para avaliar.");
+      return;
+    }
+    if (userRating === 0) {
+      setRatingMessage("Por favor, selecione uma avaliação antes de enviar.");
+      return;
+    }
+
+    setRatingMessage("Enviando avaliação...");
+
+    try {
+      const response = await fetch("/api/avaliar-produto", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productId: produto.id,
+          rating: userRating,
+          userId: user?.id, // <--- Mantenha esta linha para enviar o ID do usuário
+          product_name: produto.nome,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Falha ao enviar avaliação.");
+      }
+
+      setRatingMessage("Avaliação enviada com sucesso!");
+      setTimeout(() => {
+        setRatingMessage(null);
+        setUserRating(0);
+      }, 3000);
+    } catch (error: any) {
+      console.error("Erro ao enviar avaliação:", error.message);
+      setRatingMessage(`Erro ao enviar avaliação: ${error.message}`);
+      setTimeout(() => setRatingMessage(null), 5000);
+    }
+  };
+
+  // Apply formatting to ingredients and modoPreparo
+  const formattedIngredientes = formatSemiColonList(produto.ingredientes);
+  const formattedModoPreparo = formatSemiColonList(produto.modoPreparo);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -164,9 +269,11 @@ export default function ProdutoModal({
           {/* Informações do Produto */}
           <div className="!w-full space-y-4 max-[420px]:w-[85vw]">
             <div>
-              <p className="text-gray-600 mb-4">{produto.descricao}</p>
+              <p className="text-gray-600 mb-4">
+                {formatUpperCase(produto.descricao)}
+              </p>
 
-              {/* Avaliação */}
+              {/* Avaliação Exibida do Produto */}
               <div className="flex items-center gap-2 mb-4">
                 <div className="flex">
                   {renderStars(produto.avaliacao || 0)}
@@ -176,6 +283,37 @@ export default function ProdutoModal({
                 </span>
               </div>
 
+              {/* Seção para o Usuário Avaliar */}
+              {user && (
+                <div className="mt-6 p-4 border rounded-lg bg-gray-50">
+                  <h4 className="font-semibold mb-2">Avalie este produto:</h4>
+                  {isLoggedIn ? (
+                    <>
+                      <div className="flex items-center gap-1 mb-3">
+                        {renderStars(userRating, true)}{" "}
+                        {/* Interactive stars */}
+                      </div>
+                      <Button
+                        onClick={handleRatingSubmit}
+                        disabled={userRating === 0}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        Enviar Avaliação
+                      </Button>
+                      {ratingMessage && (
+                        <p className="mt-2 text-sm text-center text-gray-700">
+                          {ratingMessage}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-600 text-center">
+                      Você precisa estar logado para avaliar este produto.
+                    </p>
+                  )}
+                </div>
+              )}
+              {/* Fim da Seção de Avaliação */}
               {/* Preço */}
               <div className="text-3xl font-bold text-blue-600 mb-4">
                 {produto.preco}
@@ -280,9 +418,9 @@ export default function ProdutoModal({
           <TabsContent value="ingredientes" className="mt-4">
             <div className="space-y-2">
               <h4 className="font-semibold">Ingredientes:</h4>
-              {produto.ingredientes && produto.ingredientes.length > 0 ? (
+              {formattedIngredientes && formattedIngredientes.length > 0 ? (
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  {produto.ingredientes.map((ingrediente, index) => (
+                  {formattedIngredientes.map((ingrediente, index) => (
                     <li key={index}>{ingrediente}</li>
                   ))}
                 </ul>
@@ -297,9 +435,9 @@ export default function ProdutoModal({
           <TabsContent value="preparo" className="mt-4">
             <div className="space-y-2">
               <h4 className="font-semibold">Modo de Preparo:</h4>
-              {produto.modoPreparo && produto.modoPreparo.length > 0 ? (
+              {formattedModoPreparo && formattedModoPreparo.length > 0 ? (
                 <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
-                  {produto.modoPreparo.map((passo, index) => (
+                  {formattedModoPreparo.map((passo, index) => (
                     <li key={index}>{passo}</li>
                   ))}
                 </ol>
@@ -319,25 +457,27 @@ export default function ProdutoModal({
               {produto.informacoesNutricionais ? (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-3 rounded-md">
-                    <div className="text-sm text-gray-600">Calorias</div>
+                    <div className="text-sm text-gray-600">Calorias (g)</div>
                     <div className="font-semibold">
                       {produto.informacoesNutricionais.calorias || "N/A"}
                     </div>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-md">
-                    <div className="text-sm text-gray-600">Proteínas</div>
+                    <div className="text-sm text-gray-600">Proteínas (g)</div>
                     <div className="font-semibold">
                       {produto.informacoesNutricionais.proteinas || "N/A"}
                     </div>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-md">
-                    <div className="text-sm text-gray-600">Carboidratos</div>
+                    <div className="text-sm text-gray-600">
+                      Carboidratos (g)
+                    </div>
                     <div className="font-semibold">
                       {produto.informacoesNutricionais.carboidratos || "N/A"}
                     </div>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-md">
-                    <div className="text-sm text-gray-600">Gorduras</div>
+                    <div className="text-sm text-gray-600">Gorduras (g)</div>
                     <div className="font-semibold">
                       {produto.informacoesNutricionais.gorduras || "N/A"}
                     </div>
@@ -376,7 +516,9 @@ export default function ProdutoModal({
             </div>
           </TabsContent>
         </Tabs>
-        <Button variant={"outline"} onClick={onClose}>Voltar</Button>
+        <Button variant={"outline"} onClick={onClose}>
+          Voltar
+        </Button>
       </DialogContent>
     </Dialog>
   );

@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       preparation,
       nutritional_info,
       details,
+      category,
     } = body;
 
     // Validação de Dados (melhorar se necessário)
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
       preparation,
       nutritional_info: parsedNutritionalInfo,
       details: parsedDetails,
+      category,
       created_at: new Date().toISOString(),
     });
 
@@ -106,6 +108,7 @@ export async function POST(request: Request) {
           preparation,
           nutritional_info: parsedNutritionalInfo,
           details: parsedDetails,
+          category,
           created_at: new Date().toISOString(),
         },
       ])

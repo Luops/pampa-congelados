@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers"; // A função cookies() é importada daqui
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -18,14 +21,14 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
+      async get(name: string) {
+        return (await cookieStore.get(name))?.value;
       },
-      set(name: string, value: string, options: any) {
-        cookieStore.set(name, value, options);
+      async set(name: string, value: string, options: any) {
+        await cookieStore.set(name, value, options);
       },
-      remove(name: string, options: any) {
-        cookieStore.delete(name, options);
+      async remove(name: string, options: any) {
+        await cookieStore.delete(name, options);
       },
     },
   });
@@ -39,7 +42,7 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from("products")
       .select(
-        "id, product_name, description, price, promo_price, image_url, stock_quantity, created_at, reviews_stars_by_person, reviews_count, ingredients, preparation, nutritional_info, details"
+        "id, product_name, description, price, promo_price, image_url, stock_quantity, created_at, reviews_stars_by_person, reviews_count, ingredients, preparation, nutritional_info, details, category, avaliacao, total_avaliacoes"
       )
       .order("created_at", { ascending: false });
 

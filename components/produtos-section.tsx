@@ -21,25 +21,31 @@ interface ProdutoApi {
   price: string;
   promo_price?: string; // Preço promocional (se existir na DB)
   stock_quantity?: number; // Quantidade em estoque (se existir na DB)
-  ingredients?: string[]; // Ingredientes
-  preparation?: string[]; // Modo de preparo
-  nutritional_info?: {
-    // Informações Nutricionais (se for JSONB na DB)
-    calories?: string;
-    proteins?: string;
-    carbohydrates?: string;
-    fats?: string;
-  };
-  details?: {
-    // Detalhes adicionais (se for JSONB na DB)
-    yield?: string;
-    weight?: string;
-    validity?: string;
-    storageTemperature?: string;
-    cookingTime?: string; // Add this if your DB has a field for preparation time
-  };
+  ingredients?: string[] | string; // Pode vir como array ou string JSON escapada
+  preparation?: string[] | string; // Pode vir como array ou string JSON escapada
+  nutritional_info?:
+    | {
+        // Informações Nutricionais (se for JSONB na DB)
+        calories?: string;
+        proteins?: string;
+        carbohydrates?: string;
+        fats?: string;
+      }
+    | string; // Pode vir como objeto ou string JSON escapada
+  details?:
+    | {
+        // Detalhes adicionais (se for JSONB na DB)
+        yield?: string;
+        weight?: string;
+        validity?: string;
+        storageTemperature?: string;
+        cookingTime?: string; // Add this if your DB has a field for preparation time
+      }
+    | string; // Pode vir como objeto ou string JSON escapada
   category?: string; // Para mapear para 'categoria'
   created_at?: string; // Data de criação
+  avaliacao?: number; // Avaliação em estrelas
+  total_avaliacoes?: number; // Total de avaliações
 }
 
 // Sua interface 'Produto' existente, que será preenchida a partir de 'ProdutoApi'
@@ -49,7 +55,7 @@ interface Produto {
   descricao: string; // Mapeia de description
   preco: string; // Mapeia de price
   promoPreco?: string; // Mapeia de promo_price
-  categoria: string; // Mapeia de category
+  categoria?: string; // Mapeia de category
   imagem: string; // Mapeia de image_url
   imagens?: string[]; // Pode ser populado com image_url se não houver coluna para múltiplas imagens
   ingredientes?: string[]; // Mapeia de ingredients
@@ -70,69 +76,94 @@ interface Produto {
   totalAvaliacoes?: number; // Mapeia de reviews_count
 }
 
-const mapProdutoApiToProduto = (apiProduto: ProdutoApi): Produto => ({
-  id: apiProduto.id,
-  nome: apiProduto.product_name,
-  descricao: apiProduto.description,
-  // Aplica a formatação ao preço principal
-  preco: formatarPreco(apiProduto.price),
-  // Aplica a formatação ao preço promocional, se existir
-  promoPreco: apiProduto.promo_price
-    ? formatarPreco(apiProduto.promo_price)
-    : undefined,
-  categoria: apiProduto.category || "Geral", // Assumindo 'category' no DB
-  imagem: apiProduto.image_url,
-  imagens: apiProduto.image_url ? [apiProduto.image_url] : [], // Populado com a URL principal por enquanto
-  ingredientes: (() => {
-    if (Array.isArray(apiProduto.ingredients)) {
-      return apiProduto.ingredients;
+// Função auxiliar para parsear JSON, se for string
+const parseJsonSafely = (jsonStringOrObject: any) => {
+  if (typeof jsonStringOrObject === "string") {
+    try {
+      // Tenta remover aspas externas e barras invertidas antes de parsear
+      const cleanedString = jsonStringOrObject
+        .replace(/^"|"$/g, "")
+        .replace(/\\"/g, '"');
+      return JSON.parse(cleanedString);
+    } catch (e) {
+      console.warn("Falha ao parsear JSON string:", jsonStringOrObject, e);
+      return {}; // Retorna um objeto vazio em caso de erro
     }
-    if (
-      typeof apiProduto.ingredients === "string" &&
-      apiProduto.ingredients.trim() !== ""
-    ) {
-      // Divide por ponto e vírgula, e depois por quebra de linha.
-      // O regex /;|\n/g significa dividir por ';' OU por '\n' (globalmente)
-      return apiProduto.ingredients
-        .split(/;|\n/g) // Dividir por ';' ou '\n'
-        .map((item) => item.trim()) // Remover espaços em branco de cada item
-        .filter((item) => item !== ""); // Remover strings vazias resultantes de múltiplos delimitadores
-    }
-    return []; // Retorne um array vazio se não houver ingredientes válidos
-  })(),
-  informacoesNutricionais: {
-    // Map to the object structure
-    calorias: apiProduto.nutritional_info?.calories,
-    proteinas: apiProduto.nutritional_info?.proteins,
-    carboidratos: apiProduto.nutritional_info?.carbohydrates,
-    gorduras: apiProduto.nutritional_info?.fats,
-  },
-  peso: apiProduto.details?.weight,
-  avaliacao: apiProduto.reviews_stars_by_person,
-  totalAvaliacoes: apiProduto.reviews_count,
-  modoPreparo: (() => {
-    // Usamos um IIFE para lógica condicional mais clara
-    if (Array.isArray(apiProduto.preparation)) {
-      return apiProduto.preparation;
-    }
-    if (
-      typeof apiProduto.preparation === "string" &&
-      apiProduto.preparation.trim() !== ""
-    ) {
-      // Divida por quebra de linha. Se for apenas uma frase, ainda será um array com um item.
-      return apiProduto.preparation
-        .split(/;|\n/g) // Dividir por ';' ou '\n'
-        .map((item) => item.trim()) // Remover espaços em branco de cada item
-        .filter((item) => item !== ""); // Remover strings vazias resultantes de múltiplos delimitadores
-    }
-    // Se for null, undefined, ou string vazia, retorne um array vazio para evitar o erro .map is not a function
-    return [];
-  })(),
-  porcoes: apiProduto.details?.yield,
-  temperatura: apiProduto.details?.storageTemperature,
-  validade: apiProduto.details?.validity,
-  tempoPreparo: apiProduto.details?.cookingTime, // Mapeamento para tempoPreparo
-});
+  }
+  return jsonStringOrObject || {}; // Retorna o objeto diretamente ou um objeto vazio se for null/undefined
+};
+
+const mapProdutoApiToProduto = (apiProduto: ProdutoApi): Produto => {
+  // Use a função parseJsonSafely para lidar com os campos JSONB
+  const parsedNutritionalInfo = parseJsonSafely(apiProduto.nutritional_info);
+  const parsedDetails = parseJsonSafely(apiProduto.details);
+
+  return {
+    id: apiProduto.id,
+    nome: apiProduto.product_name,
+    descricao: apiProduto.description,
+    // Aplica a formatação ao preço principal
+    preco: formatarPreco(apiProduto.price),
+    // Aplica a formatação ao preço promocional, se existir
+    promoPreco: apiProduto.promo_price
+      ? formatarPreco(apiProduto.promo_price)
+      : undefined,
+    categoria: apiProduto.category || "Geral", // Assumindo 'category' no DB
+    imagem: apiProduto.image_url,
+    imagens: apiProduto.image_url ? [apiProduto.image_url] : [], // Populado com a URL principal por enquanto
+    ingredientes: (() => {
+      const rawIngredients = apiProduto.ingredients;
+      if (typeof rawIngredients === "string") {
+        try {
+          const parsed = JSON.parse(rawIngredients);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) {
+          // Fallback para split se não for um JSON de array válido
+          return rawIngredients
+            .split(/;|\n/g)
+            .map((item) => item.trim())
+            .filter((item) => item !== "");
+        }
+      }
+      return Array.isArray(rawIngredients) ? rawIngredients : [];
+    })(),
+    informacoesNutricionais: {
+      // Acesse as propriedades do objeto parseado
+      calorias:
+        parsedNutritionalInfo.calories || parsedNutritionalInfo.calorias,
+      proteinas:
+        parsedNutritionalInfo.proteins || parsedNutritionalInfo.proteinas,
+      carboidratos:
+        parsedNutritionalInfo.carbohydrates ||
+        parsedNutritionalInfo.carboidratos,
+      gorduras: parsedNutritionalInfo.fats || parsedNutritionalInfo.gorduras,
+    },
+    // Acesse as propriedades do objeto parseado
+    peso: parsedDetails.weight,
+    avaliacao: apiProduto.avaliacao,
+    totalAvaliacoes: apiProduto.total_avaliacoes,
+    modoPreparo: (() => {
+      const rawPreparation = apiProduto.preparation;
+      if (typeof rawPreparation === "string") {
+        try {
+          const parsed = JSON.parse(rawPreparation);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) {
+          // Fallback para split se não for um JSON de array válido
+          return rawPreparation
+            .split(/;|\n/g)
+            .map((item) => item.trim())
+            .filter((item) => item !== "");
+        }
+      }
+      return Array.isArray(rawPreparation) ? rawPreparation : [];
+    })(),
+    porcoes: parsedDetails.yield,
+    temperatura: parsedDetails.storageTemperature,
+    validade: parsedDetails.validity,
+    tempoPreparo: parsedDetails.cookingTime, // Mapeamento para tempoPreparo
+  };
+};
 
 // Função auxiliar para formatar o preço
 const formatarPreco = (preco: string | number | undefined): string => {

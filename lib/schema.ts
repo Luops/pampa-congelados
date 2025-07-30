@@ -10,6 +10,7 @@ export const productSchema = z.object({
     .string()
     .min(1, "A descrição é obrigatória.")
     .max(500, "A descrição deve ter no máximo 500 caracteres."),
+  category: z.string().min(1, "A categoria é obrigatória."),
   reviews: z
     .object({
       quantityStarsByPerson: z.coerce.number().min(0).max(5).default(0),
@@ -66,6 +67,7 @@ export type Product = {
   id: string; // O ID vem do banco de dados
   product_name: string;
   description: string;
+  category: string;
   reviews_stars_by_person: number | null;
   reviews_count: number | null;
   price: number;

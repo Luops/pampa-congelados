@@ -342,7 +342,7 @@ export default function ModalConfirmacaoPedido({
   };
 
   const gerarMensagemWhatsApp = () => {
-    let mensagem = "🛒 *NOVO PEDIDO - FREEZEFOOD*\n\n";
+    let mensagem = "🛒 *NOVO PEDIDO - PAMPA CONGELADOS*\n\n";
 
     mensagem += "👤 *DADOS DO CLIENTE*\n";
     mensagem += `Nome: ${dadosCliente.nome}\n`;

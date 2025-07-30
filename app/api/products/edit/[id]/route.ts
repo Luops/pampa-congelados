@@ -116,6 +116,7 @@ export async function PATCH(
       preparation,
       nutritional_info, // Supabase client lida com objetos JSON/JSONB diretamente
       details, // Supabase client lida com objetos JSON/JSONB diretamente
+      category,
     } = body;
 
     // Constrói o objeto de atualização com os campos recebidos
@@ -135,6 +136,7 @@ export async function PATCH(
     if (nutritional_info !== undefined)
       updateData.nutritional_info = nutritional_info;
     if (details !== undefined) updateData.details = details;
+    if (category !== undefined) updateData.category = category;
 
     // Usa o builder de query do Supabase para atualizar o produto
     const { data: updatedProduct, error } = await supabase

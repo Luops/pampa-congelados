@@ -20,7 +20,7 @@ function Dashboard() {
   // This line is correct, just needs the env variable to be properly inlined.
   const adminRole = Number(process.env.NEXT_PUBLIC_ROLE_ADMIN);
 
-  React.useEffect(() => {
+  /*React.useEffect(() => {
     // Add these logs to confirm the values are correct
     console.log("User from AuthContext:", user);
     console.log("Loading state:", loading);
@@ -35,7 +35,7 @@ function Dashboard() {
       }
     }
   }, [user, loading, adminRole, router]);
-
+*/
   if (loading) {
     return (
       <div className="w-full h-screen flex flex-col items-center justify-center">

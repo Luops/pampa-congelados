@@ -9,7 +9,8 @@ import {
   Home as HomeIcon,
   ChevronRight,
   Upload,
-  FilePlus2
+  FilePlus2,
+  Truck 
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -147,7 +148,7 @@ export function DashboardAside() {
             href="/dashboard/fretes"
             className="flex items-center gap-3 px-4 py-2 rounded-md text-black/70 hover:bg-blue-200 transition"
           >
-            <FilePlus2 className="h-5 w-5" />
+            <Truck className="h-5 w-5" />
             Editar fretes
           </Link>
 
