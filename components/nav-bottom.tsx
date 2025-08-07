@@ -25,7 +25,7 @@ function NavBottom() {
   // State for cart icon color (not used in provided snippet, but keeping it)
   const [corCarrinho, setCorCarrinho] = useState("white");
 
-  const adminRole = Number(process.env.NEXT_PUBLIC_ROLE_ADMIN);
+  const adminRole = Number(process.env.NEXT_PUBLIC_ROLE_ADMIN_ENCRYPTED);
 
   const formatarPreco = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -68,7 +68,7 @@ function NavBottom() {
               <span className="text-xs truncate max-w-[60px]">
                 {" "}
                 {/* Truncate long names, limit width */}
-                {user.name.split(" ")[0]}
+                {user.name ? user.name.split(" ")[0] : "Perfil"}
               </span>
             </Button>
           </PopoverTrigger>
@@ -86,7 +86,7 @@ function NavBottom() {
               <Link
                 href="/dashboard"
                 className={`justify-start px-3 py-2 text-sm hover:bg-gray-100 rounded-sm transition-all duration-200 ${
-                  user.role === adminRole ? "" : "hidden"
+                  user?.role === adminRole ? "" : "hidden"
                 }`}
               >
                 Dashboard

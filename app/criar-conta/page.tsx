@@ -24,6 +24,7 @@ export default function Register() {
   const [neighborhood, setNeighborhood] =
     useState<User_Model["neighborhood"]>("");
   const [address, setAddress] = useState<User_Model["address"]>("");
+  const [isAdmin, setIsAdmin] = useState(false); // Novo campo para escolher se é admin
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -69,6 +70,15 @@ export default function Register() {
       return;
     }
 
+    // Determinar a role baseada na seleção
+    const adminRole = parseInt(
+      process.env.NEXT_PUBLIC_ROLE_ADMIN_ENCRYPTED || "202507"
+    );
+    const userRole = parseInt(process.env.ROLE_USER_ENCRYPTED || "102030");
+    const selectedRole = isAdmin ? adminRole : userRole;
+
+    console.log("Registrando com role:", selectedRole, "isAdmin:", isAdmin);
+
     const result = await register({
       email,
       password,
@@ -77,7 +87,7 @@ export default function Register() {
       city,
       neighborhood,
       address,
-      role: 1,
+      role: selectedRole, // Usar a role correta
     });
 
     if (result.success) {
@@ -284,6 +294,37 @@ export default function Register() {
                   <Eye className="h-4 w-4" />
                 )}
               </button>
+            </div>
+          </div>
+
+          {/* Campo Tipo de Usuário - NOVO */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Tipo de Usuário
+            </label>
+            <div className="flex space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="userType"
+                  value="user"
+                  checked={!isAdmin}
+                  onChange={() => setIsAdmin(false)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Cliente</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="userType"
+                  value="admin"
+                  checked={isAdmin}
+                  onChange={() => setIsAdmin(true)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Administrador</span>
+              </label>
             </div>
           </div>
 

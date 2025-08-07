@@ -22,7 +22,10 @@ import {
   Star,
   Minus,
   Plus,
+  MessageSquare,
+  Instagram,
 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa"; // Importando ícones de exemplo
 import Image from "next/image";
 import { useCarrinho } from "@/contexts/carrinho-context";
 import { useAuth } from "@/contexts/AuthContext"; // Importe o useAuth
@@ -35,46 +38,89 @@ interface ProdutoDetalhado {
   categoria: string;
   imagem: string;
   imagens?: string[];
-  ingredientes?: string[]; // Aqui está 'ingredientes'
+  ingredientes?: string[];
   informacoesNutricionais?: {
-    // Aqui está 'informacoesNutricionais'
     calorias?: string;
     proteinas?: string;
     carboidratos?: string;
     gorduras?: string;
   };
-  modoPreparo?: string[]; // Aqui está 'modoPreparo'
+  modoPreparo?: string[];
   tempoPreparo?: string;
   porcoes?: string;
   temperatura?: string;
   validade?: string;
   peso?: string;
-  avaliacao?: number;
-  totalAvaliacoes?: number;
+  avaliacao?: number; // Média de todas as avaliações
+  totalAvaliacoes?: number; // Total de avaliações
+  // Adicione um campo para armazenar a avaliação do USUÁRIO ESPECÍFICO, se vier do backend
+  userSpecificRating?: number; // Novo campo para a avaliação do usuário
 }
 
 interface ProdutoModalProps {
   produto: ProdutoDetalhado | null;
   isOpen: boolean;
   onClose: () => void;
+  // Opcional: callback para atualizar o produto na lista principal após a avaliação
+  onRatingSuccess?: (
+    productId: number,
+    newAvgRating: number,
+    newTotalRatings: number
+  ) => void;
 }
 
 export default function ProdutoModal({
   produto,
   isOpen,
   onClose,
+  onRatingSuccess,
 }: ProdutoModalProps) {
   const [imagemAtual, setImagemAtual] = useState(0);
   const [quantidade, setQuantidade] = useState(1);
   const [isFavorito, setIsFavorito] = useState(false);
-  const [userRating, setUserRating] = useState(0); // State for the user's selected rating
-  const [ratingMessage, setRatingMessage] = useState<string | null>(null); // Feedback message for rating
+  const [userRating, setUserRating] = useState(0);
+  const [ratingMessage, setRatingMessage] = useState<string | null>(null);
+  const [loadingRating, setLoadingRating] = useState(true);
+  const [showShareOptions, setShowShareOptions] = useState(false); // Novo estado para controlar a visibilidade das opções de compartilhamento
 
-  const { user, loading } = useAuth(); // <--- Use o hook useAuth para pegar o usuário e o status de carregamento
-  const isLoggedIn = !!user; // Deriva o status de login diretamente do `user` do AuthContext
+  const { user, loading } = useAuth();
+  const isLoggedIn = !!user;
 
   const { adicionarItem, obterQuantidadeItem } = useCarrinho();
   const quantidadeNoCarrinho = obterQuantidadeItem(produto?.id || 0);
+
+  useEffect(() => {
+    const fetchUserRating = async () => {
+      if (!produto || !user || !isOpen) {
+        setLoadingRating(false);
+        return;
+      }
+
+      setLoadingRating(true);
+      try {
+        if (produto.userSpecificRating !== undefined) {
+          setUserRating(produto.userSpecificRating);
+        } else {
+          setUserRating(0);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar avaliação do usuário:", error);
+        setUserRating(0);
+      } finally {
+        setLoadingRating(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchUserRating();
+    } else {
+      setUserRating(0);
+      setRatingMessage(null);
+      setQuantidade(1);
+      setImagemAtual(0);
+      setShowShareOptions(false); // Reseta o estado do compartilhamento ao fechar o modal
+    }
+  }, [isOpen, produto, user]);
 
   if (!produto) return null;
   console.log("Produto no modal: ", produto);
@@ -85,14 +131,71 @@ export default function ProdutoModal({
   const decrementarQuantidade = () =>
     setQuantidade((prev) => Math.max(1, prev - 1));
 
-  const renderStars = (rating: number, interactive: boolean = false) => {
+  const handleStarClick = async (selectedRating: number) => {
+    if (loading || loadingRating) {
+      setRatingMessage("Aguarde a verificação do status...");
+      return;
+    }
+    if (!isLoggedIn) {
+      setRatingMessage("Você precisa estar logado para avaliar.");
+      return;
+    }
+
+    setUserRating(selectedRating);
+    setRatingMessage("Enviando avaliação...");
+
+    try {
+      const response = await fetch("/api/avaliar-produto", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productId: produto.id,
+          rating: selectedRating,
+          userId: user?.id,
+          product_name: produto.nome,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Falha ao enviar avaliação.");
+      }
+
+      setRatingMessage(
+        data.message || "Avaliação enviada/atualizada com sucesso!"
+      );
+
+      if (
+        onRatingSuccess &&
+        data.newAvgRating !== undefined &&
+        data.newTotalRatings !== undefined
+      ) {
+        onRatingSuccess(produto.id, data.newAvgRating, data.newTotalRatings);
+      }
+
+      setTimeout(() => {
+        setRatingMessage(null);
+      }, 3000);
+    } catch (error: any) {
+      console.error("Erro ao enviar avaliação:", error.message);
+      setRatingMessage(`Erro ao enviar avaliação: ${error.message}`);
+      setTimeout(() => setRatingMessage(null), 5000);
+    }
+  };
+
+  const renderStars = (rating: number) => {
+    const currentRating = isLoggedIn && userRating > 0 ? userRating : rating;
+
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`h-4 w-4 cursor-pointer ${
-          i < rating ? "text-yellow-400 fill-current" : "text-gray-300"
-        } ${interactive ? "hover:text-yellow-500" : ""}`}
-        onClick={interactive ? () => setUserRating(i + 1) : undefined}
+        className={`h-4 w-4 ${
+          i < currentRating ? "text-yellow-400 fill-current" : "text-gray-300"
+        } ${isLoggedIn ? "cursor-pointer hover:text-yellow-500" : ""}`}
+        onClick={isLoggedIn ? () => handleStarClick(i + 1) : undefined}
       />
     ));
   };
@@ -113,109 +216,100 @@ export default function ProdutoModal({
         ingredientes: produto.ingredientes,
         calorias: produto.informacoesNutricionais?.calorias,
       });
-      // Resetar quantidade para 1 após adicionar
       setQuantidade(1);
     }
   };
 
-  // Descrição com a primeira letra maiúscula e após cada ponto final.
   const formatUpperCase = (str: string): string => {
     if (!str) {
       return "";
     }
-
-    // 1. Convert the entire string to lowercase first
     let formattedStr = str.toLowerCase();
-
-    // 2. Capitalize the first letter of the entire string
     formattedStr = formattedStr.charAt(0).toUpperCase() + formattedStr.slice(1);
-
-    // 3. Capitalize the first letter after each period followed by a space
     formattedStr = formattedStr.replace(/(\.\s*)([a-z])/g, (match, p1, p2) => {
       return p1 + p2.toUpperCase();
     });
-
     return formattedStr;
   };
 
-  // Formata cada item de uma lista separada por ponto e vírgula
-  // A primeira letra de cada item (ou após um ';') é maiúscula, o resto minúscula.
   const formatSemiColonList = (items: string[] | undefined): string[] => {
     if (!items || items.length === 0) {
       return [];
     }
-
     return items.map((item) => {
-      // Split by semicolon, trim each part, and then format
       return item
         .split(";")
         .map((part) => {
           const trimmedPart = part.trim();
           if (!trimmedPart) {
-            return ""; // Return empty for empty parts
+            return "";
           }
-          // Apply the same capitalization logic as formatUpperCase
           return (
             trimmedPart.charAt(0).toUpperCase() +
             trimmedPart.slice(1).toLowerCase()
           );
         })
-        .join("; "); // Join back with semicolon and a space
+        .join("; ");
     });
   };
 
-  // Enviar avaliação
-  const handleRatingSubmit = async () => {
-    if (loading) {
-      setRatingMessage("Verificando status de login...");
-      return;
-    }
-    if (!isLoggedIn) {
-      setRatingMessage("Você precisa estar logado para avaliar.");
-      return;
-    }
-    if (userRating === 0) {
-      setRatingMessage("Por favor, selecione uma avaliação antes de enviar.");
-      return;
-    }
-
-    setRatingMessage("Enviando avaliação...");
-
-    try {
-      const response = await fetch("/api/avaliar-produto", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          productId: produto.id,
-          rating: userRating,
-          userId: user?.id, // <--- Mantenha esta linha para enviar o ID do usuário
-          product_name: produto.nome,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Falha ao enviar avaliação.");
-      }
-
-      setRatingMessage("Avaliação enviada com sucesso!");
-      setTimeout(() => {
-        setRatingMessage(null);
-        setUserRating(0);
-      }, 3000);
-    } catch (error: any) {
-      console.error("Erro ao enviar avaliação:", error.message);
-      setRatingMessage(`Erro ao enviar avaliação: ${error.message}`);
-      setTimeout(() => setRatingMessage(null), 5000);
-    }
-  };
-
-  // Apply formatting to ingredients and modoPreparo
   const formattedIngredientes = formatSemiColonList(produto.ingredientes);
   const formattedModoPreparo = formatSemiColonList(produto.modoPreparo);
+
+  // --- Funções de Compartilhamento ---
+  const handleShareClick = () => {
+    setShowShareOptions((prev) => !prev); // Alterna a visibilidade das opções de compartilhamento
+  };
+
+  const getShareUrl = () => {
+    // Retorna a URL atual do produto. Adapte se você tiver URLs específicas para produtos.
+    // Ex: `window.location.origin}/produtos/${produto.id}`
+    return typeof window !== "undefined"
+      ? window.location.href
+      : "https://seusite.com/produto-exemplo";
+  };
+
+  const shareOnWhatsApp = () => {
+    const text = `Confira este produto incrível: ${produto.nome}! Preço: ${
+      produto.preco
+    }. Saiba mais: ${getShareUrl()}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(
+      text
+    )}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
+  const shareOnInstagram = () => {
+    // O compartilhamento direto para o feed do Instagram via URL é limitado e não muito funcional
+    // para web apps. Geralmente, requer a API oficial ou compartilhamento de imagem.
+    // Para stories, o link pode ser aberto, mas o usuário precisa adicionar manualmente.
+    // Uma alternativa é copiar a URL para a área de transferência e instruir o usuário.
+
+    const shareUrl = getShareUrl();
+    const caption = `Olha que legal esse produto: ${produto.nome}!`;
+
+    // Opção 1: Abrir Instagram (o usuário terá que colar a URL manualmente)
+    // window.open("https://www.instagram.com/", "_blank");
+    // alert("Copie o link e cole na sua história ou post do Instagram: " + shareUrl);
+
+    // Opção 2: Usar a Web Share API (se disponível e para Android/iOS)
+    if (navigator.share) {
+      navigator
+        .share({
+          title: produto.nome,
+          text: caption,
+          url: shareUrl,
+        })
+        .then(() => console.log("Compartilhado com sucesso!"))
+        .catch((error) => console.error("Erro ao compartilhar:", error));
+    } else {
+      // Fallback para navegadores que não suportam a Web Share API
+      // Abre uma nova aba para o Instagram, o usuário terá que copiar e colar o link.
+      window.open("https://www.instagram.com/", "_blank");
+      alert(`Copie o link e cole no seu Instagram: ${shareUrl}\n\n${caption}`);
+    }
+  };
+  // --- Fim das Funções de Compartilhamento ---
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -273,7 +367,7 @@ export default function ProdutoModal({
                 {formatUpperCase(produto.descricao)}
               </p>
 
-              {/* Avaliação Exibida do Produto */}
+              {/* Avaliação Exibida do Produto e Interativa */}
               <div className="flex items-center gap-2 mb-4">
                 <div className="flex">
                   {renderStars(produto.avaliacao || 0)}
@@ -282,38 +376,13 @@ export default function ProdutoModal({
                   {produto.avaliacao}/5 ({produto.totalAvaliacoes} avaliações)
                 </span>
               </div>
-
-              {/* Seção para o Usuário Avaliar */}
-              {user && (
-                <div className="mt-6 p-4 border rounded-lg bg-gray-50">
-                  <h4 className="font-semibold mb-2">Avalie este produto:</h4>
-                  {isLoggedIn ? (
-                    <>
-                      <div className="flex items-center gap-1 mb-3">
-                        {renderStars(userRating, true)}{" "}
-                        {/* Interactive stars */}
-                      </div>
-                      <Button
-                        onClick={handleRatingSubmit}
-                        disabled={userRating === 0}
-                        className="w-full bg-green-600 hover:bg-green-700"
-                      >
-                        Enviar Avaliação
-                      </Button>
-                      {ratingMessage && (
-                        <p className="mt-2 text-sm text-center text-gray-700">
-                          {ratingMessage}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-600 text-center">
-                      Você precisa estar logado para avaliar este produto.
-                    </p>
-                  )}
-                </div>
+              {/* Mensagem de feedback para a avaliação */}
+              {ratingMessage && (
+                <p className="mt-2 text-sm text-center text-gray-700">
+                  {ratingMessage}
+                </p>
               )}
-              {/* Fim da Seção de Avaliação */}
+
               {/* Preço */}
               <div className="text-3xl font-bold text-blue-600 mb-4">
                 {produto.preco}
@@ -362,7 +431,7 @@ export default function ProdutoModal({
                 </div>
               </div>
 
-              {/* Botões de Ação */}
+              {/* Botões de Ação e Compartilhamento */}
               <div className="flex flex-col items-center gap-2 mb-4">
                 <Button
                   className="!w-full flex-1 bg-blue-600 hover:bg-blue-700 py-4"
@@ -373,7 +442,9 @@ export default function ProdutoModal({
                     ? `Adicionar mais (${quantidadeNoCarrinho} no carrinho)`
                     : "Adicionar ao Carrinho"}
                 </Button>
-                <div className="flex gap-3">
+                <div className="flex gap-3 relative">
+                  {" "}
+                  {/* Adicionado relative para posicionamento dos botões de compartilhamento */}
                   <Button
                     variant="outline"
                     size="icon"
@@ -384,9 +455,36 @@ export default function ProdutoModal({
                       className={`h-4 w-4 ${isFavorito ? "fill-current" : ""}`}
                     />
                   </Button>
-                  <Button variant="outline" size="icon">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleShareClick}
+                  >
                     <Share2 className="h-4 w-4" />
                   </Button>
+                  {/* Opções de Compartilhamento (WhatsApp e Instagram) */}
+                  {showShareOptions && (
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 flex gap-2 p-2 bg-white border rounded-md shadow-lg z-10">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={shareOnWhatsApp}
+                        className="bg-green-500 hover:bg-green-600 text-white"
+                      >
+                        <FaWhatsapp className="h-4 w-4" />{" "}
+                        {/* Ícone para WhatsApp */}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={shareOnInstagram}
+                        className="bg-pink-500 hover:bg-pink-600 text-white"
+                      >
+                        <Instagram className="h-4 w-4" />{" "}
+                        {/* Ícone para Instagram */}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

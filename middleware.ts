@@ -1,68 +1,89 @@
-// middleware.ts
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import type { Database } from "./types/supabase";
+import { jwtVerify } from "jose";
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this"
+);
+
+async function getAuthFromCookie(request: NextRequest) {
+  try {
+    const token = request.cookies.get("auth_token")?.value;
+    if (!token) return null;
+
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return {
+      userId: payload.userId as string,
+      role: payload.role as number,
+      email: payload.email as string,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient<Database>({ req, res });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  console.log(`[Middleware] ${req.method} ${req.nextUrl.pathname}`);
 
-  const ADMIN_ROLE = Number(process.env.NEXT_PUBLIC_ADMIN_ROLE);
-  // *** ADICIONE ESTE LOG AQUI ***
-  console.log("[Middleware] NEXT_PUBLIC_ADMIN_ROLE:", ADMIN_ROLE);
-  console.log("[Middleware] Tipo do ADMIN_ROLE:", typeof ADMIN_ROLE);
-  // ****************************
+  // Rotas que precisam de autenticação
+  const protectedRoutes = ["/dashboard", "/admin"];
+  const adminRoutes = ["/dashboard", "/admin", "/api/admin"];
 
-  // Verifique se o objeto user está sendo retornado e qual seu conteúdo
-  console.log(
-    "[Middleware] Supabase User Data:",
-    user ? `ID: ${user.id}, Email: ${user.email}` : "NÃO LOGADO"
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    req.nextUrl.pathname.startsWith(route)
   );
 
-  if (req.nextUrl.pathname.startsWith("/dashboard")) {
-    if (!user) {
-      console.log(
-        "[Middleware] Usuário NÃO logado para rota /dashboard, redirecionando para /login."
-      );
-      return NextResponse.redirect(new URL("/login", req.url));
+  const isAdminRoute = adminRoutes.some((route) =>
+    req.nextUrl.pathname.startsWith(route)
+  );
+
+  if (isProtectedRoute || isAdminRoute) {
+    const authUser = await getAuthFromCookie(req);
+
+    // Verificar autenticação
+    if (!authUser) {
+      console.log("[Middleware] Usuário não autenticado");
+
+      if (req.nextUrl.pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL("/", req.url));
     }
 
-    console.log("[Middleware] Usuário logado, verificando role...");
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    // *** ADICIONE ESTES LOGS AQUI ***
-    console.log("[Middleware] User ID (do auth.getUser):", user.id);
-    console.log("[Middleware] User Data (do DB):", userData);
-    console.log("[Middleware] User Data Role (do DB):", userData?.role);
     console.log(
-      "[Middleware] Tipo do User Data Role (do DB):",
-      typeof userData?.role
+      `[Middleware] Usuário autenticado: ${authUser.email}, Role: ${authUser.role}`
     );
 
-    // ****************************
-
-    if (userError) {
-      console.error("[Middleware] Erro ao buscar role do usuário:", userError);
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-
-    if (!userData || userData.role !== ADMIN_ROLE) {
-      console.log(
-        "[Middleware] Usuário logado MAS não tem role de ADMIN, redirecionando para /."
+    // Verificar permissões de admin para rotas administrativas
+    if (isAdminRoute) {
+      // CORREÇÃO: Usar a mesma variável que auth-server.ts
+      const adminRole = parseInt(
+        process.env.NEXT_PUBLIC_ROLE_ADMIN_ENCRYPTED || "202507"
       );
-      return NextResponse.redirect(new URL("/", req.url));
-    }
 
-    console.log("[Middleware] Acesso ao dashboard autorizado.");
+      console.log(
+        `[Middleware] Comparando roles - Usuário: ${authUser.role}, Admin: ${adminRole}`
+      );
+
+      if (authUser.role !== adminRole) {
+        console.log(
+          `[Middleware] Usuário ${authUser.email} não tem permissões de admin (${authUser.role} !== ${adminRole})`
+        );
+
+        if (req.nextUrl.pathname.startsWith("/api/")) {
+          return NextResponse.json(
+            { error: "Acesso negado: permissões de administrador necessárias" },
+            { status: 403 }
+          );
+        }
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+
+      console.log(`[Middleware] Admin verificado: ${authUser.email}`);
+    }
   }
 
   return res;
@@ -72,7 +93,8 @@ export const config = {
   matcher: [
     "/dashboard",
     "/dashboard/:path*",
+    "/admin/:path*",
     "/api/admin/:path*",
-    "/api/avaliar-produto",
+    "/auth/:path*",
   ],
 };
